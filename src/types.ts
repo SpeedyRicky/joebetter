@@ -109,25 +109,25 @@ export interface ModelOption {
 
 export const AVAILABLE_MODELS: ModelOption[] = [
   {
-    id: 'gemini-3.8-flash',
-    name: 'Joe Turbo (3.8 Flash)',
-    description: 'High capacity, fast, reliable intelligence for all chat, coding, and reasoning tasks.',
+    id: 'gemini-3.6-flash',
+    name: 'Joe 3.6 Flash',
+    description: 'High-speed, dependable intelligence with zero congestion.',
     isDefault: true,
   },
   {
-    id: 'gemini-3.7-flash',
-    name: 'Joe 3.7 Flash',
-    description: 'Versatile and fast general-purpose conversational intelligence.',
-  },
-  {
-    id: 'gemini-3.6-flash',
-    name: 'Joe 3.6 Flash',
-    description: 'Dependable, high-throughput model.',
-  },
-  {
     id: 'gemini-3.1-flash-lite',
-    name: 'Joe Lite (Speed)',
-    description: 'Ultra-lightweight model for quick conversational queries.',
+    name: 'Joe Lite (Instant)',
+    description: 'Ultra-lightweight model with immediate availability.',
+  },
+  {
+    id: 'gemini-3.5-flash',
+    name: 'Joe 3.5 Flash',
+    description: 'Stable general-purpose conversational intelligence.',
+  },
+  {
+    id: 'gemini-3.8-flash',
+    name: 'Joe 3.8 Flash (Experimental)',
+    description: 'Next-gen model (may experience peak-demand surges).',
   },
   {
     id: 'gemini-3.1-pro-preview',
@@ -140,7 +140,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   theme: 'system',
   enterToSend: true,
   showTimestamps: true,
-  model: 'gemini-3.8-flash',
+  model: 'gemini-3.6-flash',
   temperature: 0.7,
   systemInstruction:
     'You are Joe, a friendly, intelligent, and articulate AI assistant. Greet the user warmly with "Hi, how are you?". You accurately read and process numbers (such as 1, 42, 100), signs and symbols (such as @, #, $, %, &, *, math operators), and analyze images and video attachments. You can also craft creative prompts to generate images and videos. Keep your tone helpful, approachable, and natural.',

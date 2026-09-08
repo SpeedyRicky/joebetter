@@ -86,11 +86,10 @@ async function startServer() {
   ) {
     const fallbackCandidates = [
       primaryModel,
-      "gemini-3.8-flash",
-      "gemini-3.7-flash",
       "gemini-3.6-flash",
-      "gemini-3.5-flash",
       "gemini-3.1-flash-lite",
+      "gemini-3.5-flash",
+      "gemini-3.8-flash",
     ].filter(Boolean);
     const modelsToTry = Array.from(new Set(fallbackCandidates));
 
@@ -168,7 +167,7 @@ async function startServer() {
 
       const {
         messages,
-        model = "gemini-3.8-flash",
+        model = "gemini-3.6-flash",
         systemInstruction,
         temperature = 0.7,
         mode = "standard",
@@ -257,15 +256,14 @@ async function startServer() {
         promptConfig.tools = [{ googleSearch: {} }];
       }
 
-      const activeModel = webSearch || mode === "web-search" || mode === "deep-think" ? "gemini-3.8-flash" : (model || "gemini-3.8-flash");
+      const activeModel = model || "gemini-3.6-flash";
 
       const fallbackCandidates = [
         activeModel,
-        "gemini-3.8-flash",
-        "gemini-3.7-flash",
         "gemini-3.6-flash",
-        "gemini-3.5-flash",
         "gemini-3.1-flash-lite",
+        "gemini-3.5-flash",
+        "gemini-3.8-flash",
       ].filter(Boolean);
       const modelsToTry = Array.from(new Set(fallbackCandidates));
 
@@ -379,7 +377,7 @@ async function startServer() {
       let enhancedPrompt = prompt.trim();
       if (ai) {
         try {
-          const enhancement = await generateContentWithFallback(ai, "gemini-3.8-flash", {
+          const enhancement = await generateContentWithFallback(ai, "gemini-3.6-flash", {
             contents: `You are Joe, an expert visual artist. Given this user image request: "${prompt}", create a concise, rich visual prompt (max 30 words) describing the subject, lighting, colors, and art style. Only return the prompt text without quotes.`,
             config: { temperature: 0.7 },
           });
@@ -420,7 +418,7 @@ async function startServer() {
 
       if (ai) {
         try {
-          const detail = await generateContentWithFallback(ai, "gemini-3.8-flash", {
+          const detail = await generateContentWithFallback(ai, "gemini-3.6-flash", {
             contents: `You are Joe, a cinematic AI director. Given this video request: "${prompt}", generate:
 Title: 2-4 word title
 Prompt: 20-word cinematic camera movement and lighting description
@@ -472,7 +470,7 @@ Format as: Title: <title> | Prompt: <description>`,
         return res.status(400).json({ error: "Message is required." });
       }
 
-      const response = await generateContentWithFallback(ai, "gemini-3.8-flash", {
+      const response = await generateContentWithFallback(ai, "gemini-3.6-flash", {
         contents: `Create a very short title (3-5 words maximum) summarizing this conversation topic:\n\n"${message.slice(0, 300)}"`,
         config: {
           systemInstruction:
@@ -502,7 +500,7 @@ Format as: Title: <title> | Prompt: <description>`,
         return res.json({ enhanced: prompt.trim() });
       }
 
-      const response = await generateContentWithFallback(ai, "gemini-3.8-flash", {
+      const response = await generateContentWithFallback(ai, "gemini-3.6-flash", {
         contents: `You are an expert prompt engineer. Take this user's raw prompt and rewrite it into a highly detailed, clear, and comprehensive prompt designed to get a flawless, zero-mistake response from an AI assistant.
 Raw user prompt: "${prompt.trim()}"
 Selected AI mode: "${mode}"
@@ -583,7 +581,7 @@ ${projectContext}
 
 Generate the modified code and explanation adhering to the JSON schema.`;
 
-      const response = await generateContentWithFallback(ai, "gemini-3.8-flash", {
+      const response = await generateContentWithFallback(ai, "gemini-3.6-flash", {
         contents: userContent,
         config: {
           systemInstruction: systemPrompt,

@@ -50,8 +50,8 @@ export function loadSettings(): AppSettings {
     if (!raw) return DEFAULT_SETTINGS;
     const parsed = JSON.parse(raw);
     const settings = { ...DEFAULT_SETTINGS, ...parsed };
-    if (settings.model === 'gemini-3.1-flash-lite') {
-      settings.model = 'gemini-3.8-flash';
+    if (!settings.model || settings.model === 'gemini-3.8-flash' || settings.model === 'gemini-2.5-flash') {
+      settings.model = 'gemini-3.6-flash';
     }
     return settings;
   } catch (err) {
