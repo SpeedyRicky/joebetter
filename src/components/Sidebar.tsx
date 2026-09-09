@@ -16,6 +16,7 @@ import {
   Swords,
 } from 'lucide-react';
 import { Conversation, ThemeMode } from '../types';
+import { JoeLogo } from './JoeLogo';
 
 interface SidebarProps {
   conversations: Conversation[];
@@ -134,12 +135,7 @@ export function Sidebar({
         <div className="p-3 border-b border-neutral-200/80 dark:border-neutral-800/80 flex flex-col gap-2">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-md bg-neutral-900 dark:bg-neutral-100 text-white dark:text-black flex items-center justify-center font-bold text-xs">
-                J
-              </div>
-              <span className="font-semibold text-sm tracking-tight text-neutral-900 dark:text-neutral-100">
-                Joe
-              </span>
+              <JoeLogo size="sm" showText={true} />
             </div>
             <button
               onClick={onClose}

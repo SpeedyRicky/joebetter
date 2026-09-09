@@ -1,4 +1,5 @@
 import { MessageSquare, Image, Film, Code2, Swords } from 'lucide-react';
+import { JoeLogo } from './JoeLogo';
 
 interface WelcomeScreenProps {
   onSelectPrompt: (promptText: string) => void;
@@ -40,9 +41,9 @@ const CONVERSATION_STARTERS = [
 export function WelcomeScreen({ onSelectPrompt, onOpenCodeSection, onOpenChessSection }: WelcomeScreenProps) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-4 py-10 max-w-2xl mx-auto w-full text-center animate-fade-in">
-      {/* Joe Avatar */}
-      <div className="w-14 h-14 rounded-2xl bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-950 flex items-center justify-center mb-5 shadow-xs font-semibold text-xl tracking-tight select-none">
-        J
+      {/* Joe Logo */}
+      <div className="mb-5 flex flex-col items-center">
+        <JoeLogo size="xl" />
       </div>
 
       <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-neutral-950 dark:text-neutral-50 mb-3">

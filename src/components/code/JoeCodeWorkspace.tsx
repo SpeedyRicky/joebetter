@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { CodeProject, CodeFile, CodeDiff, TimeTravelSnapshot } from '../../types';
 import { DEFAULT_PROJECTS } from '../../data/defaultProjects';
+import { JoeLogo } from '../JoeLogo';
 import { CodeEditorView } from './CodeEditorView';
 import { LivePreview } from './LivePreview';
 import { DiffViewer } from './DiffViewer';
@@ -215,9 +216,7 @@ export function JoeCodeWorkspace({ onBackToChat }: JoeCodeWorkspaceProps) {
 
           {/* Logo & Section Title */}
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-white text-black flex items-center justify-center font-bold text-xs">
-              J
-            </div>
+            <JoeLogo size="xs" />
             <div className="flex items-center gap-1.5">
               <span className="font-bold text-sm tracking-tight text-white">Joe Code</span>
               <span className="text-[10px] px-1.5 py-0.2 rounded bg-neutral-800 text-neutral-300 font-medium">

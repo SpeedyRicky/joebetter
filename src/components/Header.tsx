@@ -1,5 +1,6 @@
 import { PanelLeft, Settings as SettingsIcon, Sun, Moon, Laptop, Plus, Code2, Swords } from 'lucide-react';
 import { ThemeMode } from '../types';
+import { JoeLogo } from './JoeLogo';
 
 interface HeaderProps {
   conversationTitle: string;
@@ -65,10 +66,11 @@ export function Header({
 
         {/* Conversation Title & Joe Badge */}
         <div className="flex items-center gap-2 min-w-0">
+          <JoeLogo size="xs" className="hidden sm:inline-flex" />
           <h2 className="text-sm font-semibold tracking-tight text-neutral-900 dark:text-neutral-100 truncate">
             {conversationTitle}
           </h2>
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700/60 shrink-0">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700/60 shrink-0">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             <span>Joe AI</span>
           </span>

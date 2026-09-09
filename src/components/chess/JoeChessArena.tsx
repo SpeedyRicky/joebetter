@@ -18,9 +18,10 @@ import {
   Share2,
 } from 'lucide-react';
 import { BotCharacter, BOT_PRESETS, getBotForElo, PlayerColor, CapturedPieces } from './chessTypes';
-import { getBotMove, getBotCommentary, getHintForPlayer, evaluateBoard } from './chessEngine';
+import { getBotMove, getBotCommentary, getHintForPlayer, evaluateBoard, clearTranspositionTable } from './chessEngine';
 import { chessSounds } from './chessSounds';
 import { ChessPiece } from './ChessPieces';
+import { JoeLogo } from '../JoeLogo';
 
 interface JoeChessArenaProps {
   onBackToChat: () => void;
@@ -255,6 +256,7 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
 
   // New Game
   const handleStartNewGame = (newColor?: PlayerColor) => {
+    clearTranspositionTable();
     chess.reset();
     setFen(chess.fen());
     setTick((t) => t + 1);
@@ -386,9 +388,7 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
           <div className="h-4 w-px bg-neutral-200 dark:border-neutral-800" />
 
           <div className="flex items-center gap-2">
-            <span className="p-1 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400">
-              <Swords className="w-4 h-4" />
-            </span>
+            <JoeLogo size="xs" />
             <div className="flex items-baseline gap-1.5">
               <h1 className="text-sm font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
                 Joe Chess Bot
