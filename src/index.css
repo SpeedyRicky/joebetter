@@ -24,6 +24,16 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+
+  ::selection {
+    background-color: #2563eb !important;
+    color: #ffffff !important;
+  }
+
+  ::-moz-selection {
+    background-color: #2563eb !important;
+    color: #ffffff !important;
+  }
 }
 
 /* Custom scrollbar for modern minimal aesthetics */

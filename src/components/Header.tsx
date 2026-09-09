@@ -1,4 +1,4 @@
-import { PanelLeft, Settings as SettingsIcon, Sun, Moon, Laptop, Plus, Code2 } from 'lucide-react';
+import { PanelLeft, Settings as SettingsIcon, Sun, Moon, Laptop, Plus, Code2, Swords } from 'lucide-react';
 import { ThemeMode } from '../types';
 
 interface HeaderProps {
@@ -9,6 +9,7 @@ interface HeaderProps {
   onNewChat: () => void;
   onOpenSettings: () => void;
   onOpenCodeSection?: () => void;
+  onOpenChessSection?: () => void;
   theme: ThemeMode;
   onThemeChange: (theme: ThemeMode) => void;
 }
@@ -20,6 +21,7 @@ export function Header({
   onNewChat,
   onOpenSettings,
   onOpenCodeSection,
+  onOpenChessSection,
   theme,
   onThemeChange,
 }: HeaderProps) {
@@ -75,6 +77,18 @@ export function Header({
 
       {/* Right Actions */}
       <div className="flex items-center gap-1.5">
+        {/* Switch to Joe Chess Bot */}
+        {onOpenChessSection && (
+          <button
+            onClick={onOpenChessSection}
+            title="Play Chess against Joe Bot (Elo 100 - 3000)"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 text-xs font-semibold shadow-xs transition cursor-pointer"
+          >
+            <Swords className="w-3.5 h-3.5 text-amber-500" />
+            <span className="hidden sm:inline">Joe Chess</span>
+          </button>
+        )}
+
         {/* Switch to Joe Code Section */}
         {onOpenCodeSection && (
           <button

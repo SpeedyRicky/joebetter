@@ -9,7 +9,8 @@ const PORT = 3000;
 async function startServer() {
   const app = express();
 
-  app.use(express.json({ limit: "5mb" }));
+  app.use(express.json({ limit: "50mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
   // Helper to safely get initialized Gemini client
   function getGeminiClient(): GoogleGenAI | null {
@@ -84,12 +85,12 @@ async function startServer() {
     primaryModel: string,
     params: { contents: any; config?: any }
   ) {
+    const safePrimary = primaryModel === "gemini-3.8-flash" ? "gemini-3.6-flash" : primaryModel;
     const fallbackCandidates = [
-      primaryModel,
+      safePrimary,
       "gemini-3.6-flash",
       "gemini-3.1-flash-lite",
       "gemini-3.5-flash",
-      "gemini-3.8-flash",
     ].filter(Boolean);
     const modelsToTry = Array.from(new Set(fallbackCandidates));
 
@@ -256,14 +257,13 @@ async function startServer() {
         promptConfig.tools = [{ googleSearch: {} }];
       }
 
-      const activeModel = model || "gemini-3.6-flash";
+      const activeModel = (model === "gemini-3.8-flash" ? "gemini-3.6-flash" : model) || "gemini-3.6-flash";
 
       const fallbackCandidates = [
         activeModel,
         "gemini-3.6-flash",
         "gemini-3.1-flash-lite",
         "gemini-3.5-flash",
-        "gemini-3.8-flash",
       ].filter(Boolean);
       const modelsToTry = Array.from(new Set(fallbackCandidates));
 
@@ -731,8 +731,7 @@ Generate the modified code and explanation adhering to the JSON schema.`;
         });
       }
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.1-flash-lite",
+      const response = await generateContentWithFallback(ai, "gemini-3.6-flash", {
         contents: `You are the terminal agent inside Joe Code (like Claude Code CLI).
 The user ran the command/instruction in their terminal: "${command}"
 Workspace files: ${fileNames.join(", ")}
@@ -755,10 +754,28 @@ Respond with realistic, helpful terminal command output or diagnostics. Keep for
     }
   });
 
+  // Global API error handler for JSON parsing errors, payload too large, etc.
+  app.use((err: any, _req: Request, res: Response, next: any) => {
+    if (err) {
+      if (err.type === "entity.too.large" || err.status === 413) {
+        return res.status(413).json({ error: "Payload too large. Please upload files under 50MB." });
+      }
+      if (err instanceof SyntaxError && "body" in err) {
+        return res.status(400).json({ error: "Malformed JSON payload in request." });
+      }
+      console.error("[Server Error]", err);
+      return res.status(500).json({ error: err.message || "An internal server error occurred." });
+    }
+    next();
+  });
+
   // Setup Vite middleware in dev or static files in production
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: false,
+      },
       appType: "spa",
     });
     app.use(vite.middlewares);

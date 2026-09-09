@@ -34,6 +34,7 @@ import { ChatComposer } from './components/ChatComposer';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { SettingsModal } from './components/SettingsModal';
 import { JoeCodeWorkspace } from './components/code/JoeCodeWorkspace';
+import { JoeChessArena } from './components/chess/JoeChessArena';
 
 export default function App() {
   const [section, setSection] = useState<AppSection>('chat');
@@ -48,13 +49,20 @@ export default function App() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Listen for open-in-joe-code event dispatched from Artifact CodeBlocks
+  // Listen for open-in-joe-code and open-in-joe-chess events
   useEffect(() => {
     const handleOpenInJoeCodeEvent = () => {
       setSection('code');
     };
+    const handleOpenInJoeChessEvent = () => {
+      setSection('chess');
+    };
     window.addEventListener('open-in-joe-code', handleOpenInJoeCodeEvent);
-    return () => window.removeEventListener('open-in-joe-code', handleOpenInJoeCodeEvent);
+    window.addEventListener('open-in-joe-chess', handleOpenInJoeChessEvent);
+    return () => {
+      window.removeEventListener('open-in-joe-code', handleOpenInJoeCodeEvent);
+      window.removeEventListener('open-in-joe-chess', handleOpenInJoeChessEvent);
+    };
   }, []);
 
   // Initialize theme, settings, and conversations
@@ -425,6 +433,12 @@ export default function App() {
     // Check if user is asking to open Joe Code IDE
     if (/\b(switch to|open|launch|go to)\s+(joe\s+)?code(\s+editor|\s+ide)?\b/i.test(text.trim())) {
       setSection('code');
+      return;
+    }
+
+    // Check if user is asking to open Joe Chess Arena
+    if (/\b(play\s+chess|open\s+chess|launch\s+chess|start\s+chess|go\s+to\s+chess|play\s+against\s+joe\s+chess|chess\s+bot|play\s+with\s+joe\s+in\s+chess)\b/i.test(text.trim())) {
+      setSection('chess');
       return;
     }
 
@@ -855,8 +869,17 @@ export default function App() {
     return <JoeCodeWorkspace onBackToChat={() => setSection('chat')} />;
   }
 
+  if (section === 'chess') {
+    return (
+      <JoeChessArena
+        onBackToChat={() => setSection('chat')}
+        onOpenCode={() => setSection('code')}
+      />
+    );
+  }
+
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-white dark:bg-black text-neutral-900 dark:text-neutral-100 antialiased selection:bg-neutral-200 dark:selection:bg-neutral-800">
+    <div className="flex h-screen w-screen overflow-hidden bg-white dark:bg-black text-neutral-900 dark:text-neutral-100 antialiased selection:bg-blue-600 selection:text-white">
       {/* Sidebar */}
       <Sidebar
         conversations={conversations}
@@ -867,6 +890,7 @@ export default function App() {
         onDeleteConversation={handleDeleteConversation}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenCodeSection={() => setSection('code')}
+        onOpenChessSection={() => setSection('chess')}
         theme={settings.theme}
         onThemeChange={handleThemeChange}
         isOpen={isSidebarOpen}
@@ -883,6 +907,7 @@ export default function App() {
           onNewChat={handleNewChat}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenCodeSection={() => setSection('code')}
+          onOpenChessSection={() => setSection('chess')}
           theme={settings.theme}
           onThemeChange={handleThemeChange}
         />
@@ -895,6 +920,7 @@ export default function App() {
               onGenerateImagePrompt={handleGenerateImage}
               onGenerateVideoPrompt={handleGenerateVideo}
               onOpenCodeSection={() => setSection('code')}
+              onOpenChessSection={() => setSection('chess')}
             />
           ) : (
             <div className="flex-1 pb-4">

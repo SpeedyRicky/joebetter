@@ -48,7 +48,7 @@ export interface Conversation {
 }
 
 export type ThemeMode = 'light' | 'dark' | 'system';
-export type AppSection = 'chat' | 'code';
+export type AppSection = 'chat' | 'code' | 'chess';
 
 export interface CodeFile {
   id: string;
@@ -123,11 +123,6 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     id: 'gemini-3.5-flash',
     name: 'Joe 3.5 Flash',
     description: 'Stable general-purpose conversational intelligence.',
-  },
-  {
-    id: 'gemini-3.8-flash',
-    name: 'Joe 3.8 Flash (Experimental)',
-    description: 'Next-gen model (may experience peak-demand surges).',
   },
   {
     id: 'gemini-3.1-pro-preview',

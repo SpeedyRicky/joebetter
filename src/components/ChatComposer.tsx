@@ -194,25 +194,34 @@ export function ChatComposer({
           file.name
         );
 
+      if (file.size > 25 * 1024 * 1024) {
+        setLimitWarning(`File "${file.name}" exceeds the 25MB limit.`);
+        continue;
+      }
+
       if (isImage || isVideo) {
         const reader = new FileReader();
         const dataUrl = await new Promise<string>((resolve) => {
-          reader.onload = () => resolve(reader.result as string);
+          reader.onload = () => resolve((reader.result as string) || '');
+          reader.onerror = () => resolve('');
           reader.readAsDataURL(file);
         });
 
-        newAttachments.push({
-          id: 'att_' + Math.random().toString(36).slice(2, 9),
-          type: isImage ? 'image' : 'video',
-          name: file.name,
-          size: file.size,
-          url: dataUrl,
-          mimeType: file.type || (isImage ? 'image/jpeg' : 'video/mp4'),
-        });
+        if (dataUrl) {
+          newAttachments.push({
+            id: 'att_' + Math.random().toString(36).slice(2, 9),
+            type: isImage ? 'image' : 'video',
+            name: file.name,
+            size: file.size,
+            url: dataUrl,
+            mimeType: file.type || (isImage ? 'image/jpeg' : 'video/mp4'),
+          });
+        }
       } else if (isCodeOrText) {
         const reader = new FileReader();
         const textContent = await new Promise<string>((resolve) => {
-          reader.onload = () => resolve(reader.result as string);
+          reader.onload = () => resolve((reader.result as string) || '');
+          reader.onerror = () => resolve('');
           reader.readAsText(file);
         });
 
@@ -225,11 +234,12 @@ export function ChatComposer({
           type: isCode ? 'code' : 'document',
           name: file.name,
           size: file.size,
-          url: `data:text/plain;charset=utf-8,${encodeURIComponent(textContent)}`,
+          url: `data:text/plain;charset=utf-8,${encodeURIComponent(textContent.slice(0, 100000))}`,
           mimeType: file.type || 'text/plain',
-          textContent: textContent,
+          textContent: textContent.slice(0, 100000),
         });
       }
+
     }
 
     if (newAttachments.length > 0) {

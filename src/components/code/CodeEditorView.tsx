@@ -149,7 +149,7 @@ export function CodeEditorView({
             autoCapitalize="off"
             autoComplete="off"
             autoCorrect="off"
-            className={`absolute inset-0 m-0 py-3 px-4 font-mono text-[13px] leading-[21px] bg-transparent text-transparent caret-white resize-none outline-hidden border-none overflow-auto z-10 selection:bg-neutral-700/60 ${
+            className={`absolute inset-0 m-0 py-3 px-4 font-mono text-[13px] leading-[21px] bg-transparent text-transparent caret-white resize-none outline-hidden border-none overflow-auto z-10 selection:bg-blue-600/60 selection:text-white ${
               wordWrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre'
             }`}
           />

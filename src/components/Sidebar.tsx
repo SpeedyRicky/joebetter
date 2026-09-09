@@ -13,6 +13,7 @@ import {
   Check,
   PanelLeftClose,
   Code2,
+  Swords,
 } from 'lucide-react';
 import { Conversation, ThemeMode } from '../types';
 
@@ -25,6 +26,7 @@ interface SidebarProps {
   onDeleteConversation: (id: string) => void;
   onOpenSettings: () => void;
   onOpenCodeSection?: () => void;
+  onOpenChessSection?: () => void;
   theme: ThemeMode;
   onThemeChange: (theme: ThemeMode) => void;
   isOpen: boolean;
@@ -40,6 +42,7 @@ export function Sidebar({
   onDeleteConversation,
   onOpenSettings,
   onOpenCodeSection,
+  onOpenChessSection,
   theme,
   onThemeChange,
   isOpen,
@@ -164,6 +167,25 @@ export function Sidebar({
               ⌘K
             </span>
           </button>
+
+          {/* Joe Chess Bot Button */}
+          {onOpenChessSection && (
+            <button
+              onClick={() => {
+                onOpenChessSection();
+                if (window.innerWidth < 768) onClose();
+              }}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 dark:bg-amber-500/10 dark:hover:bg-amber-500/15 text-neutral-900 dark:text-neutral-100 font-medium text-xs shadow-xs transition cursor-pointer"
+            >
+              <span className="flex items-center gap-2">
+                <Swords className="w-4 h-4 text-amber-500" />
+                <span>Play Chess vs Joe</span>
+              </span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300 font-semibold">
+                100-3000
+              </span>
+            </button>
+          )}
 
           {/* Joe Code IDE & Agent Button */}
           {onOpenCodeSection && (

@@ -1,18 +1,20 @@
-import { MessageSquare, Image, Film, Code2 } from 'lucide-react';
+import { MessageSquare, Image, Film, Code2, Swords } from 'lucide-react';
 
 interface WelcomeScreenProps {
   onSelectPrompt: (promptText: string) => void;
   onGenerateImagePrompt?: (promptText: string) => void;
   onGenerateVideoPrompt?: (promptText: string) => void;
   onOpenCodeSection?: () => void;
+  onOpenChessSection?: () => void;
 }
 
 const CONVERSATION_STARTERS = [
   {
-    icon: MessageSquare,
-    label: 'Say Hello',
-    text: 'Hi Joe, how are you doing today?',
-    description: 'Start a friendly conversation with Joe',
+    icon: Swords,
+    label: 'Play Chess vs Joe Bot',
+    text: 'Play chess against Joe with custom Elo from 100 to 3000 just like Chess.com bots',
+    description: 'Interactive board, Elo bots (Martin, Nelson, Magnus, 3000), hints & analysis',
+    isChessAction: true,
   },
   {
     icon: Code2,
@@ -22,20 +24,20 @@ const CONVERSATION_STARTERS = [
     isCodeAction: true,
   },
   {
+    icon: MessageSquare,
+    label: 'Say Hello',
+    text: 'Hi Joe, how are you doing today?',
+    description: 'Start a friendly conversation with Joe',
+  },
+  {
     icon: Image,
     label: 'Generate an Image',
     text: 'Generate an image of a serene mountain lake at sunrise with mist and pine trees',
     description: 'Ask Joe to generate artwork or photos',
   },
-  {
-    icon: Film,
-    label: 'Generate a Video',
-    text: 'Generate a video of flying over snowy mountain peaks during golden hour',
-    description: 'Create cinematic video clips and motion',
-  },
 ];
 
-export function WelcomeScreen({ onSelectPrompt, onOpenCodeSection }: WelcomeScreenProps) {
+export function WelcomeScreen({ onSelectPrompt, onOpenCodeSection, onOpenChessSection }: WelcomeScreenProps) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-4 py-10 max-w-2xl mx-auto w-full text-center animate-fade-in">
       {/* Joe Avatar */}
@@ -48,7 +50,7 @@ export function WelcomeScreen({ onSelectPrompt, onOpenCodeSection }: WelcomeScre
       </h1>
 
       <p className="text-[15px] text-neutral-500 dark:text-neutral-400 mb-8 max-w-md leading-relaxed">
-        I’m <span className="font-semibold text-neutral-900 dark:text-neutral-100">Joe</span>. I can answer questions, read numbers and symbols like @, analyze your images and videos, or write and run code in <span className="font-semibold text-neutral-900 dark:text-neutral-100">Joe Code</span>.
+        I’m <span className="font-semibold text-neutral-900 dark:text-neutral-100">Joe</span>. Chat with me, play chess against me from <span className="font-semibold text-amber-600 dark:text-amber-400">Elo 100 to 3000</span>, or write and execute code in <span className="font-semibold text-neutral-900 dark:text-neutral-100">Joe Code</span>.
       </p>
 
       {/* Conversation Starters Grid */}
@@ -59,13 +61,15 @@ export function WelcomeScreen({ onSelectPrompt, onOpenCodeSection }: WelcomeScre
             <button
               key={idx}
               onClick={() => {
-                if (item.isCodeAction && onOpenCodeSection) {
+                if (item.isChessAction && onOpenChessSection) {
+                  onOpenChessSection();
+                } else if (item.isCodeAction && onOpenCodeSection) {
                   onOpenCodeSection();
                 } else {
                   onSelectPrompt(item.text);
                 }
               }}
-              className="p-3.5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50/60 dark:bg-neutral-900/40 hover:bg-neutral-100 dark:hover:bg-neutral-800/80 hover:border-neutral-300 dark:hover:border-neutral-700 transition-all text-left flex items-start gap-3 group cursor-pointer"
+              className="p-3.5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50/60 dark:bg-neutral-900/40 hover:bg-neutral-100 dark:hover:bg-neutral-800/80 hover:border-neutral-300 dark:border-neutral-700 transition-all text-left flex items-start gap-3 group cursor-pointer"
             >
               <div className="w-8 h-8 rounded-lg bg-neutral-200/80 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform mt-0.5">
                 <Icon className="w-4 h-4" />

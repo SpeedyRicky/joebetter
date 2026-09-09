@@ -9,6 +9,128 @@
     <meta property="og:description" content="Joe — Your intelligent, thoughtful AI assistant with real-time conversational streaming, image & video support, and custom tools." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
+    <script>
+      (function () {
+        // Suppress WebSocket errors and unhandled rejections caused by Vite HMR in proxy/container environments
+        var originalWebSocket = window.WebSocket;
+        if (typeof originalWebSocket === 'function') {
+          var MockWebSocket = function (url, protocols) {
+            var urlStr = String(url || '');
+            var protoStr = String(protocols || '');
+            var isViteHmr =
+              protoStr.includes('vite') ||
+              urlStr.includes('vite') ||
+              urlStr.includes('token=') ||
+              urlStr.includes('24678') ||
+              urlStr.includes('/@vite');
+
+            if (isViteHmr) {
+              var emitter = new EventTarget();
+              var mockSocket = {
+                url: urlStr,
+                readyState: 1, // OPEN
+                protocol: protocols || 'vite-hmr',
+                extensions: '',
+                bufferedAmount: 0,
+                binaryType: 'blob',
+                CONNECTING: 0,
+                OPEN: 1,
+                CLOSING: 2,
+                CLOSED: 3,
+                onopen: null,
+                onclose: null,
+                onerror: null,
+                onmessage: null,
+                send: function () {},
+                close: function () {
+                  mockSocket.readyState = 3;
+                },
+                addEventListener: function (type, listener, options) {
+                  emitter.addEventListener(type, listener, options);
+                },
+                removeEventListener: function (type, listener, options) {
+                  emitter.removeEventListener(type, listener, options);
+                },
+                dispatchEvent: function (event) {
+                  return emitter.dispatchEvent(event);
+                }
+              };
+              setTimeout(function () {
+                if (mockSocket.readyState === 1) {
+                  var ev = new Event('open');
+                  emitter.dispatchEvent(ev);
+                  if (typeof mockSocket.onopen === 'function') {
+                    mockSocket.onopen(ev);
+                  }
+                }
+              }, 0);
+              return mockSocket;
+            }
+            return new originalWebSocket(url, protocols);
+          };
+
+          MockWebSocket.prototype = originalWebSocket.prototype;
+          MockWebSocket.CONNECTING = 0;
+          MockWebSocket.OPEN = 1;
+          MockWebSocket.CLOSING = 2;
+          MockWebSocket.CLOSED = 3;
+          window.WebSocket = MockWebSocket;
+        }
+
+        // Intercept and silence console.error / console.warn for Vite websocket disconnects
+        var origConsoleError = console.error;
+        console.error = function () {
+          var args = Array.prototype.slice.call(arguments);
+          var fullText = args
+            .map(function (a) {
+              return String((a && (a.message || a.stack || a)) || '');
+            })
+            .join(' ');
+          if (
+            fullText.includes('WebSocket') ||
+            fullText.includes('websocket') ||
+            fullText.includes('[vite] failed to connect')
+          ) {
+            return;
+          }
+          return origConsoleError.apply(console, arguments);
+        };
+
+        // Prevent unhandled rejections and global errors related to WebSocket disconnects
+        window.addEventListener(
+          'unhandledrejection',
+          function (event) {
+            var reason = event && event.reason;
+            var msg = String((reason && (reason.message || reason.stack || reason)) || '');
+            if (
+              msg.includes('WebSocket') ||
+              msg.includes('websocket') ||
+              msg.includes('failed to connect')
+            ) {
+              event.preventDefault();
+              event.stopImmediatePropagation();
+            }
+          },
+          true
+        );
+
+        window.addEventListener(
+          'error',
+          function (event) {
+            var msg = String((event && (event.message || event.error)) || '');
+            if (
+              msg.includes('WebSocket') ||
+              msg.includes('websocket') ||
+              msg.includes('failed to connect')
+            ) {
+              event.preventDefault();
+              event.stopImmediatePropagation();
+            }
+          },
+          true
+        );
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
