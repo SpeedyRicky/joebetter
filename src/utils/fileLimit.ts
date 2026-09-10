@@ -2,7 +2,7 @@ export const DAILY_FILE_LIMIT = 6;
 
 function getTodayKey(): string {
   const today = new Date().toISOString().slice(0, 10);
-  return `joe_daily_files_${today}`;
+  return `gret_daily_files_${today}`;
 }
 
 export function getTodayUploadCount(): number {

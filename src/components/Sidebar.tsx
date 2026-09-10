@@ -14,6 +14,7 @@ import {
   PanelLeftClose,
   Code2,
   Swords,
+  Gamepad2,
 } from 'lucide-react';
 import { Conversation, ThemeMode } from '../types';
 import { JoeLogo } from './JoeLogo';
@@ -164,7 +165,7 @@ export function Sidebar({
             </span>
           </button>
 
-          {/* Chess Bot Button */}
+          {/* Games Arena Button */}
           {onOpenChessSection && (
             <button
               onClick={() => {
@@ -174,16 +175,16 @@ export function Sidebar({
               className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 dark:bg-amber-500/10 dark:hover:bg-amber-500/15 text-neutral-900 dark:text-neutral-100 font-medium text-xs shadow-xs transition cursor-pointer"
             >
               <span className="flex items-center gap-2">
-                <Swords className="w-4 h-4 text-amber-500" />
-                <span>Play Chess vs Craig</span>
+                <Gamepad2 className="w-4 h-4 text-amber-500" />
+                <span>Play Games with Gret</span>
               </span>
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300 font-semibold">
-                100-3000
+                Chess • Uno • More
               </span>
             </button>
           )}
 
-          {/* Craig Code IDE & Agent Button */}
+          {/* Gret Code IDE & Agent Button */}
           {onOpenCodeSection && (
             <button
               onClick={() => {
@@ -194,7 +195,7 @@ export function Sidebar({
             >
               <span className="flex items-center gap-2">
                 <Code2 className="w-4 h-4 text-emerald-500" />
-                <span>Craig Code IDE</span>
+                <span>Gret Code IDE</span>
               </span>
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 font-mono">
                 Editor

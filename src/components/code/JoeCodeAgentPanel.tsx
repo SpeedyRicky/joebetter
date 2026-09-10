@@ -85,7 +85,7 @@ export function JoeCodeAgentPanel({
       const data = await res.json();
       onApplyDiff(
         data.code,
-        data.summary || `Updated ${activeFile.name} with Craig Code.`,
+        data.summary || `Updated ${activeFile.name} with Gret Code.`,
         data.highlights || [],
         action
       );
@@ -111,9 +111,9 @@ export function JoeCodeAgentPanel({
       <div className="flex items-center justify-between p-2.5 border-b border-neutral-800 bg-neutral-950 shrink-0">
         <div className="flex items-center gap-1.5">
           <div className="w-5 h-5 rounded-md bg-white text-black flex items-center justify-center font-bold text-[10px]">
-            C
+            G
           </div>
-          <span className="font-semibold text-neutral-100 text-xs">Craig Code Agent</span>
+          <span className="font-semibold text-neutral-100 text-xs">Gret Code Agent</span>
         </div>
 
         <div className="flex items-center gap-1">
@@ -244,7 +244,7 @@ export function JoeCodeAgentPanel({
                 onChange={(e) => setPrompt(e.target.value)}
                 onKeyDown={handleKeyDown}
                 disabled={loading}
-                placeholder="Ask Craig Code to add features, refactor components, or solve logic issues..."
+                placeholder="Ask Gret Code to add features, refactor components, or solve logic issues..."
                 className="w-full flex-1 min-h-[90px] p-3 bg-transparent text-neutral-100 text-xs resize-none outline-hidden placeholder:text-neutral-500 select-text"
               />
               <div className="p-2 border-t border-neutral-850 flex items-center justify-between bg-neutral-900/40">
@@ -271,10 +271,10 @@ export function JoeCodeAgentPanel({
           </div>
         </div>
       ) : (
-        /* Time Travel Tab (Craig Code Unique Twist) */
+        /* Time Travel Tab (Gret Code Unique Twist) */
         <div className="flex-1 p-3 overflow-y-auto space-y-2.5">
           <div className="text-neutral-400 text-[11px] leading-relaxed mb-2">
-            <strong>Craig Smart Time-Travel</strong> automatically captures project snapshots before any AI or user patch, letting you travel back anytime.
+            <strong>Gret Smart Time-Travel</strong> automatically captures project snapshots before any AI or user patch, letting you travel back anytime.
           </div>
 
           {snapshots.length === 0 ? (

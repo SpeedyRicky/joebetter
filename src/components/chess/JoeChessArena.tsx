@@ -16,6 +16,8 @@ import {
   AlertTriangle,
   Play,
   Share2,
+  X,
+  Eye,
 } from 'lucide-react';
 import { BotCharacter, BOT_PRESETS, getBotForElo, PlayerColor, CapturedPieces } from './chessTypes';
 import { getBotMove, getBotCommentary, getHintForPlayer, evaluateBoard, clearTranspositionTable } from './chessEngine';
@@ -58,10 +60,23 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
 
   // Modals & Panels
   const [isEloDrawerOpen, setIsEloDrawerOpen] = useState(false);
+  const [isGameOverModalOpen, setIsGameOverModalOpen] = useState(false);
   const [gameOverResult, setGameOverResult] = useState<{
     winner: 'player' | 'bot' | 'draw' | null;
     reason: string;
   } | null>(null);
+
+  // Close modals on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsGameOverModalOpen(false);
+        setIsEloDrawerOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Move history for PGN/list
   const [historyMoves, setHistoryMoves] = useState<string[]>([]);
@@ -94,14 +109,19 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
           winner,
           reason: `Checkmate! ${winner === 'player' ? 'You won!' : `${currentBot.name} won!`}`,
         });
+        setIsGameOverModalOpen(true);
       } else if (chess.isStalemate()) {
         setGameOverResult({ winner: 'draw', reason: 'Stalemate! Draw.' });
+        setIsGameOverModalOpen(true);
       } else if (chess.isThreefoldRepetition()) {
         setGameOverResult({ winner: 'draw', reason: 'Draw by Threefold Repetition.' });
+        setIsGameOverModalOpen(true);
       } else if (chess.isInsufficientMaterial()) {
         setGameOverResult({ winner: 'draw', reason: 'Draw by Insufficient Material.' });
+        setIsGameOverModalOpen(true);
       } else {
         setGameOverResult({ winner: 'draw', reason: 'Draw.' });
+        setIsGameOverModalOpen(true);
       }
       return true;
     }
@@ -266,6 +286,7 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
     setHintMove(null);
     setPendingPromotion(null);
     setGameOverResult(null);
+    setIsGameOverModalOpen(false);
     setHistoryMoves([]);
     setIsBotThinking(false);
 
@@ -295,6 +316,7 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
     setLastMove(null);
     setHintMove(null);
     setGameOverResult(null);
+    setIsGameOverModalOpen(false);
     setHistoryMoves(chess.history());
     setBotSpeech("Move taken back! Let's try again.");
     chessSounds.playMove();
@@ -323,6 +345,7 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
       winner: 'bot',
       reason: `You resigned. ${currentBot.name} wins!`,
     });
+    setIsGameOverModalOpen(true);
     setBotSpeech("Good game! Resignation accepted. Ready for a rematch?");
   };
 
@@ -360,13 +383,40 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
     };
   }, [fen]);
 
-  // Centipawn evaluation
-  const positionEval = useMemo(() => {
-    const raw = evaluateBoard(chess);
-    // Normalize to -10 to +10 range
-    const pawns = raw / 100;
-    return Math.max(-10, Math.min(10, pawns));
-  }, [fen]);
+  // Chess.com standard logistic evaluation calculation
+  const whiteAdvantagePercent = useMemo(() => {
+    // Checkmate or Resignation
+    if (gameOverResult) {
+      if (gameOverResult.winner === 'draw') return 50;
+      const whiteWon =
+        (gameOverResult.winner === 'player' && playerColor === 'w') ||
+        (gameOverResult.winner === 'bot' && playerColor === 'b');
+      return whiteWon ? 100 : 0;
+    }
+    if (chess.isCheckmate()) {
+      return chess.turn() === 'w' ? 0 : 100;
+    }
+    if (chess.isDraw()) {
+      return 50;
+    }
+
+    const rawCp = evaluateBoard(chess);
+    // Chess.com standard sigmoid curve: P(white) = 1 / (1 + 10^(-cp / 400))
+    const winProb = 1 / (1 + Math.pow(10, -rawCp / 400));
+    const percent = winProb * 100;
+
+    // Keep within [2, 98] during active play unless forced mate/game over
+    return Math.max(2, Math.min(98, percent));
+  }, [fen, gameOverResult, playerColor, chess]);
+
+  // Chess.com Eval Bar dynamic heights based on board orientation:
+  // - If White is at bottom (!boardFlipped): bottom bar is White (height = whiteAdvantagePercent%)
+  // - If Black is at bottom (boardFlipped): bottom bar is Black (height = (100 - whiteAdvantagePercent)%)
+  const bottomBarHeight = boardFlipped
+    ? 100 - whiteAdvantagePercent
+    : whiteAdvantagePercent;
+  const bottomBgClass = boardFlipped ? 'bg-[#262421]' : 'bg-[#FFFFFF]';
+  const topBgClass = boardFlipped ? 'bg-[#FFFFFF]' : 'bg-[#262421]';
 
   // Board square ranks and files
   const ranks = boardFlipped ? [1, 2, 3, 4, 5, 6, 7, 8] : [8, 7, 6, 5, 4, 3, 2, 1];
@@ -382,7 +432,7 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Back to Craig</span>
+            <span>Back to Gret</span>
           </button>
 
           <div className="h-4 w-px bg-neutral-200 dark:border-neutral-800" />
@@ -391,7 +441,7 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
             <JoeLogo size="xs" />
             <div className="flex items-baseline gap-1.5">
               <h1 className="text-sm font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
-                Craig Chess Bot
+                Gret Chess Bot
               </h1>
               <span className="text-xs text-neutral-500 font-medium">
                 vs {currentBot.name} ({currentBot.elo} Elo)
@@ -477,16 +527,26 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
             </div>
 
             {/* Middle: Chess Board with Eval Bar */}
-            <div className="flex items-stretch gap-2.5">
-              {/* Vertical Evaluation Bar (Chess.com style) */}
-              <div className="w-3.5 sm:w-4 rounded-full bg-neutral-800 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 overflow-hidden flex flex-col justify-end relative shadow-inner shrink-0">
-                {/* White portion */}
+            <div className="flex items-stretch gap-2 sm:gap-3">
+              {/* Vertical Evaluation Bar (Chess.com style, no numbers) */}
+              <div
+                className={`w-5 sm:w-6 self-stretch rounded-[4px] ${topBgClass} border border-neutral-300 dark:border-neutral-700/80 overflow-hidden flex flex-col justify-end relative shadow-xs shrink-0 select-none`}
+                title="Position Evaluation"
+                aria-label="Position evaluation bar"
+              >
+                {/* Bottom rising section */}
                 <div
-                  className="w-full bg-white transition-all duration-300 ease-out"
+                  className={`w-full ${bottomBgClass} transition-[height] duration-500 ease-out relative z-10`}
                   style={{
-                    height: `${Math.max(5, Math.min(95, 50 + positionEval * 4.5))}%`,
+                    height: `${bottomBarHeight}%`,
                   }}
                 />
+
+                {/* Center 50% equality indicator marker (hairline ticks on sides like Chess.com) */}
+                <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-px pointer-events-none z-20 flex justify-between px-0.5">
+                  <div className="w-1 h-px bg-neutral-400/80" />
+                  <div className="w-1 h-px bg-neutral-400/80" />
+                </div>
               </div>
 
               {/* 8x8 Chess Board */}
@@ -646,14 +706,24 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
                   <RefreshCw className="w-3.5 h-3.5" />
                 </button>
 
-                <button
-                  onClick={handleResign}
-                  title="Resign Game"
-                  disabled={!!gameOverResult}
-                  className="px-2.5 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50 text-xs font-semibold hover:bg-rose-100 dark:hover:bg-rose-900/60 disabled:opacity-40 transition cursor-pointer"
-                >
-                  Resign
-                </button>
+                {gameOverResult ? (
+                  <button
+                    onClick={() => setIsGameOverModalOpen(true)}
+                    title="View Victory / Loss Screen"
+                    className="px-2.5 py-1.5 rounded-lg bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 text-xs font-semibold hover:opacity-90 transition cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Trophy className="w-3.5 h-3.5" />
+                    <span>View Result</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleResign}
+                    title="Resign Game"
+                    className="px-2.5 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50 text-xs font-semibold hover:bg-rose-100 dark:hover:bg-rose-900/60 transition cursor-pointer"
+                  >
+                    Resign
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -674,6 +744,44 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
               <span>New Game</span>
             </button>
           </div>
+
+          {/* Game Over Banner when modal is dismissed to review board */}
+          {gameOverResult && !isGameOverModalOpen && (
+            <div className="p-3 bg-neutral-50 dark:bg-neutral-850/70 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between gap-2 animate-in fade-in">
+              <div className="flex items-center gap-2 min-w-0">
+                <span
+                  className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                    gameOverResult.winner === 'player'
+                      ? 'bg-amber-500'
+                      : gameOverResult.winner === 'bot'
+                      ? 'bg-rose-500'
+                      : 'bg-blue-500'
+                  }`}
+                />
+                <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200 truncate">
+                  {gameOverResult.winner === 'player'
+                    ? 'Victory!'
+                    : gameOverResult.winner === 'bot'
+                    ? `${currentBot.name} Won`
+                    : 'Draw Game'}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  onClick={() => setIsGameOverModalOpen(true)}
+                  className="px-2 py-1 rounded-md text-[11px] font-semibold border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300 transition cursor-pointer"
+                >
+                  View Result
+                </button>
+                <button
+                  onClick={() => handleStartNewGame()}
+                  className="px-2 py-1 rounded-md text-[11px] font-bold bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 hover:opacity-90 transition cursor-pointer"
+                >
+                  Rematch
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Color Chooser */}
           <div className="p-3 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
@@ -802,9 +910,24 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
       </div>
 
       {/* Game Over Modal Popup */}
-      {gameOverResult && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-sm bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-2xl p-6 flex flex-col items-center text-center gap-4">
+      {gameOverResult && isGameOverModalOpen && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsGameOverModalOpen(false);
+          }}
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+        >
+          <div className="w-full max-w-sm bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-2xl p-6 flex flex-col items-center text-center gap-4 relative animate-in zoom-in-95 duration-150">
+            {/* Exit (X) Button */}
+            <button
+              onClick={() => setIsGameOverModalOpen(false)}
+              className="absolute top-3.5 right-3.5 p-1.5 rounded-lg text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+              title="Exit and Review Board"
+              aria-label="Exit and review board"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
             <div
               className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl ${
                 gameOverResult.winner === 'player'
@@ -836,21 +959,32 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
               "{botSpeech}"
             </div>
 
-            <div className="w-full flex gap-2">
+            <div className="w-full flex flex-col gap-2">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleStartNewGame()}
+                  className="flex-1 py-2.5 rounded-xl bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 text-xs font-bold shadow-xs hover:opacity-90 transition cursor-pointer"
+                >
+                  Play Rematch
+                </button>
+                <button
+                  onClick={() => {
+                    setIsGameOverModalOpen(false);
+                    setIsEloDrawerOpen(true);
+                  }}
+                  className="py-2.5 px-4 rounded-xl border border-neutral-300 dark:border-neutral-700 text-xs font-bold text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+                >
+                  Change Bot
+                </button>
+              </div>
+
+              {/* Dedicated Exit to Board button */}
               <button
-                onClick={() => handleStartNewGame()}
-                className="flex-1 py-2.5 rounded-xl bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 text-xs font-bold shadow-xs hover:opacity-90 transition cursor-pointer"
+                onClick={() => setIsGameOverModalOpen(false)}
+                className="w-full py-2 rounded-xl text-xs font-semibold text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                Play Rematch
-              </button>
-              <button
-                onClick={() => {
-                  setGameOverResult(null);
-                  setIsEloDrawerOpen(true);
-                }}
-                className="py-2.5 px-4 rounded-xl border border-neutral-300 dark:border-neutral-700 text-xs font-bold text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
-              >
-                Change Bot
+                <Eye className="w-3.5 h-3.5" />
+                <span>Exit & Review Board</span>
               </button>
             </div>
           </div>

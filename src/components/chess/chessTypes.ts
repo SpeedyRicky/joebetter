@@ -12,8 +12,8 @@ export interface BotCharacter {
 
 export const BOT_PRESETS: BotCharacter[] = [
   {
-    id: 'baby-joe',
-    name: 'Baby Joe',
+    id: 'baby-gret',
+    name: 'Baby Gret',
     elo: 100,
     avatar: '👶',
     avatarColor: 'bg-pink-500/20 text-pink-600 dark:text-pink-400',
@@ -22,8 +22,8 @@ export const BOT_PRESETS: BotCharacter[] = [
     category: 'beginner',
   },
   {
-    id: 'martin-joe',
-    name: 'Martin Joe',
+    id: 'martin-gret',
+    name: 'Martin Gret',
     elo: 250,
     avatar: '🧔',
     avatarColor: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400',
@@ -32,8 +32,8 @@ export const BOT_PRESETS: BotCharacter[] = [
     category: 'beginner',
   },
   {
-    id: 'elani-joe',
-    name: 'Elani Joe',
+    id: 'elani-gret',
+    name: 'Elani Gret',
     elo: 400,
     avatar: '👧',
     avatarColor: 'bg-amber-500/20 text-amber-600 dark:text-amber-400',
@@ -42,8 +42,8 @@ export const BOT_PRESETS: BotCharacter[] = [
     category: 'beginner',
   },
   {
-    id: 'aron-joe',
-    name: 'Aron Joe',
+    id: 'aron-gret',
+    name: 'Aron Gret',
     elo: 700,
     avatar: '👦',
     avatarColor: 'bg-cyan-500/20 text-cyan-600 dark:text-cyan-400',
@@ -52,8 +52,8 @@ export const BOT_PRESETS: BotCharacter[] = [
     category: 'beginner',
   },
   {
-    id: 'laura-joe',
-    name: 'Laura Joe',
+    id: 'laura-gret',
+    name: 'Laura Gret',
     elo: 1000,
     avatar: '👩‍🦰',
     avatarColor: 'bg-blue-500/20 text-blue-600 dark:text-blue-400',
@@ -62,8 +62,8 @@ export const BOT_PRESETS: BotCharacter[] = [
     category: 'intermediate',
   },
   {
-    id: 'nelson-joe',
-    name: 'Nelson Joe',
+    id: 'nelson-gret',
+    name: 'Nelson Gret',
     elo: 1200,
     avatar: '👨‍🦱',
     avatarColor: 'bg-purple-500/20 text-purple-600 dark:text-purple-400',
@@ -72,8 +72,8 @@ export const BOT_PRESETS: BotCharacter[] = [
     category: 'intermediate',
   },
   {
-    id: 'isabel-joe',
-    name: 'Isabel Joe',
+    id: 'isabel-gret',
+    name: 'Isabel Gret',
     elo: 1400,
     avatar: '👩‍🎓',
     avatarColor: 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400',
@@ -82,8 +82,8 @@ export const BOT_PRESETS: BotCharacter[] = [
     category: 'intermediate',
   },
   {
-    id: 'antonio-joe',
-    name: 'Antonio Joe',
+    id: 'antonio-gret',
+    name: 'Antonio Gret',
     elo: 1600,
     avatar: '👨‍🔬',
     avatarColor: 'bg-rose-500/20 text-rose-600 dark:text-rose-400',
@@ -92,8 +92,8 @@ export const BOT_PRESETS: BotCharacter[] = [
     category: 'intermediate',
   },
   {
-    id: 'wally-joe',
-    name: 'Wally Joe',
+    id: 'wally-gret',
+    name: 'Wally Gret',
     elo: 1800,
     avatar: '🧓',
     avatarColor: 'bg-orange-500/20 text-orange-600 dark:text-orange-400',
@@ -102,8 +102,8 @@ export const BOT_PRESETS: BotCharacter[] = [
     category: 'advanced',
   },
   {
-    id: 'li-joe',
-    name: 'Master Li Joe',
+    id: 'li-gret',
+    name: 'Master Li Gret',
     elo: 2000,
     avatar: '🥋',
     avatarColor: 'bg-teal-500/20 text-teal-600 dark:text-teal-400',
@@ -112,8 +112,8 @@ export const BOT_PRESETS: BotCharacter[] = [
     category: 'advanced',
   },
   {
-    id: 'elena-joe',
-    name: 'Elena Joe',
+    id: 'elena-gret',
+    name: 'Elena Gret',
     elo: 2200,
     avatar: '👑',
     avatarColor: 'bg-violet-500/20 text-violet-600 dark:text-violet-400',
@@ -123,8 +123,8 @@ export const BOT_PRESETS: BotCharacter[] = [
     category: 'advanced',
   },
   {
-    id: 'gm-joe',
-    name: 'Grandmaster Joe',
+    id: 'gm-gret',
+    name: 'Grandmaster Gret',
     elo: 2500,
     avatar: '🎖️',
     avatarColor: 'bg-amber-600/20 text-amber-600 dark:text-amber-400',
@@ -134,8 +134,8 @@ export const BOT_PRESETS: BotCharacter[] = [
     category: 'master',
   },
   {
-    id: 'magnus-joe',
-    name: 'Magnus Joe',
+    id: 'magnus-gret',
+    name: 'Magnus Gret',
     elo: 2850,
     avatar: '⚡',
     avatarColor: 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400',
@@ -145,8 +145,8 @@ export const BOT_PRESETS: BotCharacter[] = [
     category: 'master',
   },
   {
-    id: 'stockfish-joe',
-    name: 'Engine Joe 3000',
+    id: 'stockfish-gret',
+    name: 'Engine Gret 3000',
     elo: 3000,
     avatar: '🤖',
     avatarColor: 'bg-red-500/20 text-red-600 dark:text-red-400',
@@ -163,8 +163,8 @@ export function getBotForElo(elo: number): BotCharacter {
   if (closest.elo === elo) return closest;
   return {
     ...closest,
-    id: `joe-${elo}`,
-    name: `Joe (${elo})`,
+    id: `gret-${elo}`,
+    name: `Gret (${elo})`,
     elo,
   };
 }

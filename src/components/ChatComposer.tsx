@@ -14,6 +14,8 @@ import {
   Globe,
   Code2,
   Zap,
+  Briefcase,
+  Activity,
   ChevronDown,
   FileCode,
   FileText,
@@ -309,6 +311,10 @@ export function ChatComposer({
         return { label: 'Claude Code', icon: Code2, color: 'text-neutral-900 dark:text-white' };
       case 'web-search':
         return { label: 'Live Web', icon: Globe, color: 'text-neutral-900 dark:text-white' };
+      case 'crm':
+        return { label: 'CRM Mode', icon: Briefcase, color: 'text-neutral-900 dark:text-white' };
+      case 'health':
+        return { label: 'Health Mode', icon: Activity, color: 'text-neutral-900 dark:text-white' };
       default:
         return { label: 'Standard', icon: Zap, color: 'text-neutral-700 dark:text-neutral-300' };
     }
@@ -418,6 +424,42 @@ export function ChatComposer({
                   <div>Live Web Search</div>
                   <div className="text-[10px] text-neutral-400 font-normal">
                     Google Grounded real-time news & citations
+                  </div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSelectMode('crm')}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition cursor-pointer ${
+                  currentMode === 'crm'
+                    ? 'bg-neutral-100 dark:bg-neutral-800 font-semibold text-neutral-900 dark:text-white'
+                    : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800/50'
+                }`}
+              >
+                <Briefcase className="w-4 h-4 text-neutral-900 dark:text-neutral-100" />
+                <div>
+                  <div>CRM & Sales Mode</div>
+                  <div className="text-[10px] text-neutral-400 font-normal">
+                    Lead qualification, deal pipelines & follow-ups
+                  </div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSelectMode('health')}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition cursor-pointer ${
+                  currentMode === 'health'
+                    ? 'bg-neutral-100 dark:bg-neutral-800 font-semibold text-neutral-900 dark:text-white'
+                    : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800/50'
+                }`}
+              >
+                <Activity className="w-4 h-4 text-neutral-900 dark:text-neutral-100" />
+                <div>
+                  <div>Health & Fitness Mode</div>
+                  <div className="text-[10px] text-neutral-400 font-normal">
+                    Workouts, nutrition, sleep & recovery habits
                   </div>
                 </div>
               </button>
@@ -532,7 +574,7 @@ export function ChatComposer({
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask Craig anything, type numbers like 1, signs like @, or paste code..."
+          placeholder="Ask Gret anything, type numbers like 1, signs like @, or paste code..."
           rows={1}
           disabled={disabled}
           className="w-full resize-none bg-transparent px-4 pt-3.5 pb-12 text-[15px] leading-relaxed text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:outline-hidden disabled:opacity-50"
@@ -644,7 +686,7 @@ export function ChatComposer({
               onClick={handleSubmit}
               disabled={(!text.trim() && attachments.length === 0) || disabled}
               type="button"
-              title="Send to Craig"
+              title="Send to Gret"
               aria-label="Send message"
               className="w-8 h-8 rounded-full bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:opacity-90 active:scale-95 transition cursor-pointer"
             >
@@ -660,7 +702,7 @@ export function ChatComposer({
           {enterToSend ? 'Enter to send • Shift + Enter for newline' : 'Shift + Enter to send'}
         </span>
         <span className="flex items-center gap-1.5">
-          <span>Craig AI</span>
+          <span>Gret AI</span>
           <span>•</span>
           <span>Zero-Mistake Architecture</span>
         </span>

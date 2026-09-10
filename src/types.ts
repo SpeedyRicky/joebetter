@@ -23,7 +23,9 @@ export interface GeneratedMedia {
   aspectRatio?: string;
 }
 
-export type AIMode = 'standard' | 'deep-think' | 'claude-code' | 'web-search' | 'creative';
+export type AIMode = 'standard' | 'deep-think' | 'claude-code' | 'web-search' | 'creative' | 'crm' | 'health';
+
+export type GameType = 'chess' | 'checkers' | 'uno' | 'battle';
 
 export interface Message {
   id: string;
@@ -48,7 +50,7 @@ export interface Conversation {
 }
 
 export type ThemeMode = 'light' | 'dark' | 'system';
-export type AppSection = 'chat' | 'code' | 'chess';
+export type AppSection = 'chat' | 'code' | 'chess' | 'games';
 
 export interface CodeFile {
   id: string;
@@ -110,23 +112,23 @@ export interface ModelOption {
 export const AVAILABLE_MODELS: ModelOption[] = [
   {
     id: 'gemini-3.6-flash',
-    name: 'Craig 3.6 Flash',
+    name: 'Gret 3.6 Flash',
     description: 'High-speed, dependable intelligence with zero congestion.',
     isDefault: true,
   },
   {
     id: 'gemini-3.1-flash-lite',
-    name: 'Craig Lite (Instant)',
+    name: 'Gret Lite (Instant)',
     description: 'Ultra-lightweight model with immediate availability.',
   },
   {
     id: 'gemini-3.5-flash',
-    name: 'Craig 3.5 Flash',
+    name: 'Gret 3.5 Flash',
     description: 'Stable general-purpose conversational intelligence.',
   },
   {
     id: 'gemini-3.1-pro-preview',
-    name: 'Craig Pro (Deep Reasoning)',
+    name: 'Gret Pro (Deep Reasoning)',
     description: 'Advanced reasoning engine for complex math, STEM, and architectural tasks.',
   },
 ];
@@ -138,5 +140,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
   model: 'gemini-3.6-flash',
   temperature: 0.7,
   systemInstruction:
-    'You are Craig, a friendly, intelligent, and articulate AI assistant. Greet the user warmly with "Hi, how are you?". You accurately read and process numbers (such as 1, 42, 100), signs and symbols (such as @, #, $, %, &, *, math operators), and analyze images and video attachments. You can also craft creative prompts to generate images and videos. Keep your tone helpful, approachable, and natural.',
+    'You are Gret, a friendly, intelligent, and articulate AI assistant. Greet the user warmly with "Hi, how are you?". You accurately read and process numbers (such as 1, 42, 100), signs and symbols (such as @, #, $, %, &, *, math operators), and analyze images and video attachments. You can also craft creative prompts to generate images and videos. Keep your tone helpful, approachable, and natural.',
 };

@@ -35,7 +35,7 @@ export async function checkServerHealth(): Promise<HealthResponse> {
     return {
       status: 'error',
       hasApiKey: false,
-      defaultModel: 'Craig AI',
+      defaultModel: 'Gret AI',
     };
   }
 }

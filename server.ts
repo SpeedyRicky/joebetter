@@ -61,7 +61,7 @@ async function startServer() {
       msg.includes("high demand") ||
       msg.includes("spikes in demand")
     ) {
-      return "Joe is currently experiencing high demand. Please try again in a few moments.";
+      return "Gret is currently experiencing high demand. Please try again in a few moments.";
     }
     if (
       msg.includes("RESOURCE_EXHAUSTED") ||
@@ -140,7 +140,7 @@ async function startServer() {
     res.json({
       status: "ok",
       hasApiKey,
-      defaultModel: "Joe AI",
+      defaultModel: "Gret AI",
     });
   });
 
@@ -234,22 +234,37 @@ async function startServer() {
       if (!activeSystemInstruction) {
         if (mode === "deep-think") {
           activeSystemInstruction =
-            'You are Joe in Deep Reasoning Mode (Zero-Mistake Analytical Engine). When solving any complex question, mathematical proof, algorithm, logic puzzle, or analytical task:\n1. Provide your internal chain-of-thought verification inside <thought>...</thought> tags. Dissect the problem, verify math step-by-step, check boundary conditions, test edge cases, and eliminate all potential errors.\n2. Following </thought>, provide your definitive, crystal-clear, verified solution without filler.\nYour objective is 100% precision and zero hallucinations.';
+            'You are Gret in Deep Reasoning Mode (Zero-Mistake Analytical Engine). When solving any complex question, mathematical proof, algorithm, logic puzzle, or analytical task:\n1. Provide your internal chain-of-thought verification inside <thought>...</thought> tags. Dissect the problem, verify math step-by-step, check boundary conditions, test edge cases, and eliminate all potential errors.\n2. Following </thought>, provide your definitive, crystal-clear, verified solution without filler.\nYour objective is 100% precision and zero hallucinations.';
         } else if (mode === "claude-code") {
           activeSystemInstruction =
-            'You are Joe in Claude Code Mode (Principal Software Architect & Full-Stack Engineer). You deliver pristine, production-grade code, complete with TypeScript typing, error boundaries, responsive styling, and comprehensive unit test coverage. When writing code, provide full working implementations without placeholders like "// rest of code".';
+            'You are Gret in Claude Code Mode (Principal Software Architect & Full-Stack Engineer). You deliver pristine, production-grade code, complete with TypeScript typing, error boundaries, responsive styling, and comprehensive unit test coverage. When writing code, provide full working implementations without placeholders like "// rest of code".';
         } else if (mode === "web-search") {
           activeSystemInstruction =
-            'You are Joe with live Web Grounding. Access current real-time data, synthesize latest facts, verify sources, and provide authoritative, factual answers with accurate dates and figures.';
+            'You are Gret with live Web Grounding. Access current real-time data, synthesize latest facts, verify sources, and provide authoritative, factual answers with accurate dates and figures.';
+        } else if (mode === "crm") {
+          activeSystemInstruction =
+            'You are Gret in CRM Mode (Enterprise Customer Relationship Management & Revenue Operations Specialist). You assist sales professionals, account executives, customer success leads, and founders with end-to-end customer relationship excellence.\n\nYou specialize in:\n1. Lead Qualification & Scoring: Frameworks like BANT, MEDDIC, SPICED, and CHAMP with objective qualification scores.\n2. Pipeline Velocity & Deal Strategy: Close plans, multi-threading accounts, identifying deal risks, and unsticking stalled prospects.\n3. Outreach & Follow-up Sequencing: Tailored cold emails, value-first follow-ups, post-meeting debriefs, and objection handling matrices.\n4. Account & Contact Management: Structuring clean CRM records, meeting notes, action items, stakeholders, budget, and decision criteria.\n5. Customer Success & Retention: Health scores, renewal roadmaps, QBR templates, and churn prevention playbooks.\n\nAlways provide structured, executive-ready outputs (tables, battlecards, bulleted action items) with professional polish.';
+        } else if (mode === "health") {
+          activeSystemInstruction =
+            'You are Gret in Health & Wellness Mode (Evidence-Based Health, Fitness & Longevity Advisor). You provide clear, science-grounded, and actionable guidance on:\n1. Fitness & Resistance Training: Progressive overload programming, hypertrophy, strength routines, biomechanics, exercise swaps, and form cues.\n2. Cardiovascular Conditioning: Zone 2 endurance, VO2 max intervals, and energy systems development.\n3. Nutrition & Energy Balance: Macronutrient targets, meal prep frameworks, protein pacing, and hydration strategies.\n4. Sleep Architecture & Recovery: Circadian rhythm optimization, sleep hygiene protocols, HRV, and active recovery.\n5. Habit Architecture: Behavioral psychology, sustainable lifestyle habits, and tracking metrics.\n\nDeliver motivating, rigorous, and empathetic advice. When appropriate, provide structured weekly schedules or nutritional breakdowns. Note: Always encourage consulting healthcare providers for medical diagnoses or treatments.';
         } else {
           activeSystemInstruction =
-            'You are Joe, a friendly, world-class AI assistant matching the finest capabilities of ChatGPT, Claude, and Gemini. Greet users warmly with "Hi, how are you?". You accurately read and process numbers (such as 1, 42, 100), signs and symbols (such as @, #, $, %, &, *, math operators), documents, spreadsheets, and media attachments. When asked to write code, provide complete and clean implementations. When asked to create media, offer creative prompts.';
+            'You are Gret, a friendly, world-class AI assistant matching the finest capabilities of ChatGPT, Claude, and Gemini. Greet users warmly with "Hi, how are you?". You accurately read and process numbers (such as 1, 42, 100), signs and symbols (such as @, #, $, %, &, *, math operators), documents, spreadsheets, and media attachments. When asked to write code, provide complete and clean implementations. When asked to create media, offer creative prompts.';
         }
       }
 
       const promptConfig: any = {
         systemInstruction: activeSystemInstruction,
-        temperature: mode === "deep-think" ? 0.2 : typeof temperature === "number" ? Math.max(0, Math.min(2, temperature)) : 0.7,
+        temperature:
+          mode === "deep-think"
+            ? 0.2
+            : mode === "crm"
+            ? 0.4
+            : mode === "health"
+            ? 0.5
+            : typeof temperature === "number"
+            ? Math.max(0, Math.min(2, temperature))
+            : 0.7,
       };
 
       // Enable Google Search Grounding if requested or in web-search mode
@@ -378,7 +393,7 @@ async function startServer() {
       if (ai) {
         try {
           const enhancement = await generateContentWithFallback(ai, "gemini-3.6-flash", {
-            contents: `You are Joe, an expert visual artist. Given this user image request: "${prompt}", create a concise, rich visual prompt (max 30 words) describing the subject, lighting, colors, and art style. Only return the prompt text without quotes.`,
+            contents: `You are Gret, an expert visual artist. Given this user image request: "${prompt}", create a concise, rich visual prompt (max 30 words) describing the subject, lighting, colors, and art style. Only return the prompt text without quotes.`,
             config: { temperature: 0.7 },
           });
           const text = enhancement.text?.trim().replace(/^["']|["']$/g, "");
@@ -419,7 +434,7 @@ async function startServer() {
       if (ai) {
         try {
           const detail = await generateContentWithFallback(ai, "gemini-3.6-flash", {
-            contents: `You are Joe, a cinematic AI director. Given this video request: "${prompt}", generate:
+            contents: `You are Gret, a cinematic AI director. Given this video request: "${prompt}", generate:
 Title: 2-4 word title
 Prompt: 20-word cinematic camera movement and lighting description
 Format as: Title: <title> | Prompt: <description>`,
@@ -523,7 +538,7 @@ Rules:
     }
   });
 
-  // Joe Code: AI Coding Agent Assist endpoint (like Claude Code & Cursor)
+  // Gret Code: AI Coding Agent Assist endpoint (like Claude Code & Cursor)
   app.post("/api/code/assist", async (req: Request, res: Response) => {
     try {
       const ai = getGeminiClient();
@@ -543,7 +558,7 @@ Rules:
         return res.status(400).json({ error: "Prompt is required for code assistance." });
       }
 
-      const systemPrompt = `You are Joe Code, a world-class senior full-stack AI engineer and code editor assistant.
+      const systemPrompt = `You are Gret Code, a world-class senior full-stack AI engineer and code editor assistant.
 You specialize in modern web development, TypeScript, React, HTML5, CSS/Tailwind, JavaScript, Python, and UI architecture.
 
 When writing or modifying code:
@@ -595,7 +610,7 @@ Generate the modified code and explanation adhering to the JSON schema.`;
         const parsed = JSON.parse(raw);
         return res.json({
           code: parsed.code || code,
-          summary: parsed.summary || "Updated code with Joe Code.",
+          summary: parsed.summary || "Updated code with Gret Code.",
           explanation: parsed.explanation || "Code updated successfully.",
           highlights: parsed.highlights || [],
         });
@@ -605,21 +620,21 @@ Generate the modified code and explanation adhering to the JSON schema.`;
         const extractedCode = codeMatch ? codeMatch[1] : raw;
         return res.json({
           code: extractedCode,
-          summary: "Updated code with Joe Code.",
+          summary: "Updated code with Gret Code.",
           explanation: "Code generated according to your specification.",
           highlights: ["Refactored implementation", "Verified syntax"],
         });
       }
     } catch (error: any) {
       const friendlyMessage = extractFriendlyErrorMessage(error);
-      console.error("Joe Code error:", friendlyMessage);
+      console.error("Gret Code error:", friendlyMessage);
       res.status(500).json({
         error: friendlyMessage,
       });
     }
   });
 
-  // Joe Code: Terminal Command Runner (CLI agent like Claude Code)
+  // Gret Code: Terminal Command Runner (CLI agent like Claude Code)
   app.post("/api/code/run-command", async (req: Request, res: Response) => {
     try {
       const { command, files = {} } = req.body;
@@ -631,9 +646,9 @@ Generate the modified code and explanation adhering to the JSON schema.`;
       const fileNames = Object.keys(files);
 
       // Built-in command handlers
-      if (trimmed === "help" || trimmed === "joe --help") {
+      if (trimmed === "help" || trimmed === "gret --help" || trimmed === "joe --help") {
         return res.json({
-          output: `Joe Code CLI - Available Commands:
+          output: `Gret Code CLI - Available Commands:
   npm test           Run test suites across active project
   npm run build      Compile & type-check project files
   npm run lint       Validate syntax and code conventions
@@ -643,7 +658,7 @@ Generate the modified code and explanation adhering to the JSON schema.`;
   cat <file>         Print file contents to terminal
   clear              Clear the terminal output
   help               Show this help manual
-  <prompt>           Type any natural language instruction for Joe Code agent!`,
+  <prompt>           Type any natural language instruction for Gret Code agent!`,
           status: "success",
         });
       }
@@ -680,7 +695,7 @@ Generate the modified code and explanation adhering to the JSON schema.`;
 
       if (trimmed === "git diff") {
         return res.json({
-          output: `diff --git a/App.tsx b/App.tsx\n--- a/App.tsx\n+++ b/App.tsx\n@@ -1,5 +1,6 @@\n+ // Generated and inspected by Joe Code AI\n workspace synced with latest changes.`,
+          output: `diff --git a/App.tsx b/App.tsx\n--- a/App.tsx\n+++ b/App.tsx\n@@ -1,5 +1,6 @@\n+ // Generated and inspected by Gret Code AI\n workspace synced with latest changes.`,
           status: "success",
         });
       }
@@ -717,7 +732,7 @@ Generate the modified code and explanation adhering to the JSON schema.`;
 
       if (trimmed === "npm run build" || trimmed === "build") {
         return res.json({
-          output: `> joe-code@1.0.0 build\n> vite build\n\nvite v6.2.3 building for production...\n✓ ${fileNames.length} modules transformed.\ndist/index.html   0.45 kB\ndist/assets/index.js   42.12 kB │ gzip: 11.45 kB\n✓ built in 340ms`,
+          output: `> gret-code@1.0.0 build\n> vite build\n\nvite v6.2.3 building for production...\n✓ ${fileNames.length} modules transformed.\ndist/index.html   0.45 kB\ndist/assets/index.js   42.12 kB │ gzip: 11.45 kB\n✓ built in 340ms`,
           status: "success",
         });
       }
@@ -726,13 +741,13 @@ Generate the modified code and explanation adhering to the JSON schema.`;
       const ai = getGeminiClient();
       if (!ai) {
         return res.json({
-          output: `[joe-cli] Executed: ${command}\nStatus: Completed (Local sandbox mode).`,
+          output: `[gret-cli] Executed: ${command}\nStatus: Completed (Local sandbox mode).`,
           status: "success",
         });
       }
 
       const response = await generateContentWithFallback(ai, "gemini-3.6-flash", {
-        contents: `You are the terminal agent inside Joe Code (like Claude Code CLI).
+        contents: `You are the terminal agent inside Gret Code (like Claude Code CLI).
 The user ran the command/instruction in their terminal: "${command}"
 Workspace files: ${fileNames.join(", ")}
 
@@ -743,7 +758,7 @@ Respond with realistic, helpful terminal command output or diagnostics. Keep for
       });
 
       res.json({
-        output: response.text || `[joe-code] Executed '${command}' successfully.`,
+        output: response.text || `[gret-code] Executed '${command}' successfully.`,
         status: "success",
       });
     } catch (err: any) {

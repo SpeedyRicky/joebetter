@@ -20,16 +20,14 @@ export function CodeBlock({ language, code }: CodeBlockProps) {
     }
   };
 
-  const handleOpenInJoeCode = () => {
-    window.dispatchEvent(
-      new CustomEvent('open-in-joe-code', {
-        detail: {
-          code,
-          language: language || 'typescript',
-          filename: language === 'html' ? 'index.html' : language === 'css' ? 'style.css' : 'App.tsx',
-        },
-      })
-    );
+  const handleOpenInGretCode = () => {
+    const detail = {
+      code,
+      language: language || 'typescript',
+      filename: language === 'html' ? 'index.html' : language === 'css' ? 'style.css' : 'App.tsx',
+    };
+    window.dispatchEvent(new CustomEvent('open-in-gret-code', { detail }));
+    window.dispatchEvent(new CustomEvent('open-in-joe-code', { detail }));
   };
 
   const displayLanguage = language ? language.toLowerCase() : 'text';
@@ -114,8 +112,8 @@ export function CodeBlock({ language, code }: CodeBlockProps) {
         <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={handleOpenInJoeCode}
-            title="Open in Craig Code IDE"
+            onClick={handleOpenInGretCode}
+            title="Open in Gret Code IDE"
             className="flex items-center gap-1 px-2 py-1 rounded transition-colors text-neutral-300 hover:text-white hover:bg-neutral-700/60 dark:hover:bg-neutral-800 cursor-pointer text-[11px]"
           >
             <ExternalLink className="w-3 h-3" />

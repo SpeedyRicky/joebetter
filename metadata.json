@@ -1,6 +1,6 @@
 {
-  "name": "Craig",
-  "description": "Craig — Your intelligent, thoughtful AI assistant with real-time conversational streaming, image & video support, and custom tools.",
+  "name": "Gret",
+  "description": "Gret — Your intelligent, thoughtful AI assistant with real-time conversational streaming, image & video support, and custom tools.",
   "requestFramePermissions": ["microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

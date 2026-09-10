@@ -35,9 +35,12 @@ import { WelcomeScreen } from './components/WelcomeScreen';
 import { SettingsModal } from './components/SettingsModal';
 import { JoeCodeWorkspace } from './components/code/JoeCodeWorkspace';
 import { JoeChessArena } from './components/chess/JoeChessArena';
+import { GamesArena } from './components/games/GamesArena';
+import { GameType } from './types';
 
 export default function App() {
   const [section, setSection] = useState<AppSection>('chat');
+  const [activeGame, setActiveGame] = useState<GameType>('chess');
   const [currentMode, setCurrentMode] = useState<AIMode>('standard');
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -49,19 +52,53 @@ export default function App() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Listen for open-in-joe-code and open-in-joe-chess events
+  // Listen for open-in-gret-code and game launch events
   useEffect(() => {
-    const handleOpenInJoeCodeEvent = () => {
+    const handleOpenCodeEvent = () => {
       setSection('code');
     };
-    const handleOpenInJoeChessEvent = () => {
-      setSection('chess');
+    const handleOpenChessEvent = () => {
+      setActiveGame('chess');
+      setSection('games');
     };
-    window.addEventListener('open-in-joe-code', handleOpenInJoeCodeEvent);
-    window.addEventListener('open-in-joe-chess', handleOpenInJoeChessEvent);
+    const handleOpenCheckersEvent = () => {
+      setActiveGame('checkers');
+      setSection('games');
+    };
+    const handleOpenUnoEvent = () => {
+      setActiveGame('uno');
+      setSection('games');
+    };
+    const handleOpenBattleEvent = () => {
+      setActiveGame('battle');
+      setSection('games');
+    };
+    const handleOpenGamesEvent = (e: Event) => {
+      const customEvent = e as CustomEvent<{ game?: GameType }>;
+      if (customEvent.detail?.game) {
+        setActiveGame(customEvent.detail.game);
+      }
+      setSection('games');
+    };
+
+    window.addEventListener('open-in-gret-code', handleOpenCodeEvent);
+    window.addEventListener('open-in-joe-code', handleOpenCodeEvent);
+    window.addEventListener('open-in-gret-chess', handleOpenChessEvent);
+    window.addEventListener('open-in-joe-chess', handleOpenChessEvent);
+    window.addEventListener('open-in-gret-checkers', handleOpenCheckersEvent);
+    window.addEventListener('open-in-gret-uno', handleOpenUnoEvent);
+    window.addEventListener('open-in-gret-battle', handleOpenBattleEvent);
+    window.addEventListener('open-in-gret-games', handleOpenGamesEvent);
+
     return () => {
-      window.removeEventListener('open-in-joe-code', handleOpenInJoeCodeEvent);
-      window.removeEventListener('open-in-joe-chess', handleOpenInJoeChessEvent);
+      window.removeEventListener('open-in-gret-code', handleOpenCodeEvent);
+      window.removeEventListener('open-in-joe-code', handleOpenCodeEvent);
+      window.removeEventListener('open-in-gret-chess', handleOpenChessEvent);
+      window.removeEventListener('open-in-joe-chess', handleOpenChessEvent);
+      window.removeEventListener('open-in-gret-checkers', handleOpenCheckersEvent);
+      window.removeEventListener('open-in-gret-uno', handleOpenUnoEvent);
+      window.removeEventListener('open-in-gret-battle', handleOpenBattleEvent);
+      window.removeEventListener('open-in-gret-games', handleOpenGamesEvent);
     };
   }, []);
 
@@ -235,7 +272,7 @@ export default function App() {
     const assistantPlaceholder: Message = {
       id: assistantMessageId,
       role: 'assistant',
-      content: 'Generating your image with Craig AI visual engine...',
+      content: 'Generating your image with Gret AI visual engine...',
       timestamp: Date.now(),
     };
 
@@ -322,7 +359,7 @@ export default function App() {
     const assistantPlaceholder: Message = {
       id: assistantMessageId,
       role: 'assistant',
-      content: 'Directing and rendering cinematic video clip with Craig AI motion engine...',
+      content: 'Directing and rendering cinematic video clip with Gret AI motion engine...',
       timestamp: Date.now(),
     };
 
@@ -430,19 +467,54 @@ export default function App() {
       return;
     }
 
-    // Check if user is asking to open Joe Code IDE
-    if (/\b(switch to|open|launch|go to)\s+(joe\s+)?code(\s+editor|\s+ide)?\b/i.test(text.trim())) {
+    // Check if user is asking to open Gret Code IDE
+    if (/\b(switch to|open|launch|go to)\s+(gret\s+|joe\s+|craig\s+)?code(\s+editor|\s+ide)?\b/i.test(text.trim())) {
       setSection('code');
       return;
     }
 
-    // Check if user is asking to open Joe Chess Arena
-    if (/\b(play\s+chess|open\s+chess|launch\s+chess|start\s+chess|go\s+to\s+chess|play\s+against\s+joe\s+chess|chess\s+bot|play\s+with\s+joe\s+in\s+chess)\b/i.test(text.trim())) {
-      setSection('chess');
+    // Check if user is asking to play Checkers
+    if (/\b(play|open|launch|start)\s+(checkers|draughts)\b/i.test(text.trim())) {
+      setActiveGame('checkers');
+      setSection('games');
       return;
     }
 
-    // Standard streaming chat with Joe
+    // Check if user is asking to play Uno
+    if (/\b(play|open|launch|start)\s+uno\b/i.test(text.trim())) {
+      setActiveGame('uno');
+      setSection('games');
+      return;
+    }
+
+    // Check if user is asking to play 2 Player Battle (Scratch project 292728003)
+    if (/\b(play|open|launch|start)\s+(2\s*player\s*battle|two\s*player\s*battle|battle|scratch\s*battle|scratch\s*game)\b/i.test(text.trim())) {
+      setActiveGame('battle');
+      setSection('games');
+      return;
+    }
+
+    // Check if user is asking to open Games / Play Games with Gret
+    if (/\b(play\s+games|play\s+games\s+with\s+gret|open\s+games|games\s+arena|game\s+hub)\b/i.test(text.trim())) {
+      setSection('games');
+      return;
+    }
+
+    // Check if user is asking to open Gret Chess Arena
+    if (/\b(play\s+chess|open\s+chess|launch\s+chess|start\s+chess|go\s+to\s+chess|play\s+against\s+(gret|joe|craig)\s+chess|chess\s+bot|play\s+with\s+(gret|joe|craig)\s+in\s+chess)\b/i.test(text.trim())) {
+      setActiveGame('chess');
+      setSection('games');
+      return;
+    }
+
+    // Mode switch shortcuts
+    if (/\b(switch to|enable|activate|use)\s+crm(\s+mode)?\b/i.test(text.trim())) {
+      setCurrentMode('crm');
+    } else if (/\b(switch to|enable|activate|use)\s+health(\s+mode)?\b/i.test(text.trim())) {
+      setCurrentMode('health');
+    }
+
+    // Standard streaming chat with Gret
     const userMessage: Message = {
       id: generateId(),
       role: 'user',
@@ -869,9 +941,10 @@ export default function App() {
     return <JoeCodeWorkspace onBackToChat={() => setSection('chat')} />;
   }
 
-  if (section === 'chess') {
+  if (section === 'games' || section === 'chess') {
     return (
-      <JoeChessArena
+      <GamesArena
+        initialGame={activeGame}
         onBackToChat={() => setSection('chat')}
         onOpenCode={() => setSection('code')}
       />
@@ -890,7 +963,10 @@ export default function App() {
         onDeleteConversation={handleDeleteConversation}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenCodeSection={() => setSection('code')}
-        onOpenChessSection={() => setSection('chess')}
+        onOpenChessSection={() => {
+          setActiveGame('chess');
+          setSection('games');
+        }}
         theme={settings.theme}
         onThemeChange={handleThemeChange}
         isOpen={isSidebarOpen}
@@ -907,7 +983,10 @@ export default function App() {
           onNewChat={handleNewChat}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenCodeSection={() => setSection('code')}
-          onOpenChessSection={() => setSection('chess')}
+          onOpenChessSection={() => {
+            setActiveGame('chess');
+            setSection('games');
+          }}
           theme={settings.theme}
           onThemeChange={handleThemeChange}
         />
@@ -920,7 +999,10 @@ export default function App() {
               onGenerateImagePrompt={handleGenerateImage}
               onGenerateVideoPrompt={handleGenerateVideo}
               onOpenCodeSection={() => setSection('code')}
-              onOpenChessSection={() => setSection('chess')}
+              onOpenChessSection={() => {
+                setActiveGame('chess');
+                setSection('games');
+              }}
             />
           ) : (
             <div className="flex-1 pb-4">

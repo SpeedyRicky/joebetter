@@ -28,7 +28,7 @@ export const DEFAULT_PROJECTS: CodeProject[] = [
     <div class="flex items-center justify-between mb-4">
       <div class="flex items-center gap-2">
         <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-        <span class="text-xs font-mono tracking-wider text-neutral-400">JOE CODE • RUNTIME</span>
+        <span class="text-xs font-mono tracking-wider text-neutral-400">GRET CODE • RUNTIME</span>
       </div>
       <button id="themeBtn" class="text-xs text-neutral-400 hover:text-white px-2 py-1 rounded bg-neutral-800">Rad</button>
     </div>
@@ -145,7 +145,7 @@ document.querySelectorAll('.key').forEach(btn => {
   });
 });
 
-console.log("Kinetic Calculator initialized in Craig Code sandbox.");`
+console.log("Kinetic Calculator initialized in Gret Code sandbox.");`
       },
       {
         id: 'f_calc_css',
@@ -398,7 +398,7 @@ function loop() {
 }
 
 loop();
-console.log("Cyber Orbit initialized in Craig Code.");`
+console.log("Cyber Orbit initialized in Gret Code.");`
       }
     ]
   }

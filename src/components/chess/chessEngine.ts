@@ -538,7 +538,7 @@ export async function getBotMove(
 }
 
 /**
- * Generate context-aware commentary from Joe Bot
+ * Generate context-aware commentary from Gret Bot
  */
 export function getBotCommentary(
   lastMove: Move,
@@ -564,12 +564,12 @@ export function getBotCommentary(
   }
 
   // Nelson signature quotes
-  if (botId === 'nelson-joe' && lastMove.piece === 'q') {
+  if (botId === 'nelson-gret' && lastMove.piece === 'q') {
     return `My Queen is on the prowl! Can you defend against her power?`;
   }
 
   // Martin signature quotes
-  if (botId === 'martin-joe') {
+  if (botId === 'martin-gret') {
     if (lastMove.piece === 'p') {
       return `Pawn forward! One step closer to becoming a queen someday!`;
     }
@@ -606,7 +606,7 @@ export function getBotCommentary(
   }
 
   // Engine 3000 computational output
-  if (botId === 'stockfish-joe' || elo >= 3000) {
+  if (botId === 'stockfish-gret' || elo >= 3000) {
     const evalCp = evaluateBoard(chess);
     const evalPawns = evalCp / 100;
     const formatted = evalPawns > 0 ? `+${evalPawns.toFixed(2)}` : evalPawns.toFixed(2);

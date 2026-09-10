@@ -176,7 +176,7 @@ export function SettingsModal({
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mb-2">
-                  Craig Intelligence Engine
+                  Gret Intelligence Engine
                 </label>
                 <div className="space-y-2">
                   {AVAILABLE_MODELS.map((m) => {
