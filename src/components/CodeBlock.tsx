@@ -115,7 +115,7 @@ export function CodeBlock({ language, code }: CodeBlockProps) {
           <button
             type="button"
             onClick={handleOpenInJoeCode}
-            title="Open in Joe Code IDE"
+            title="Open in Craig Code IDE"
             className="flex items-center gap-1 px-2 py-1 rounded transition-colors text-neutral-300 hover:text-white hover:bg-neutral-700/60 dark:hover:bg-neutral-800 cursor-pointer text-[11px]"
           >
             <ExternalLink className="w-3 h-3" />

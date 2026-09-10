@@ -145,7 +145,7 @@ document.querySelectorAll('.key').forEach(btn => {
   });
 });
 
-console.log("Kinetic Calculator initialized in Joe Code sandbox.");`
+console.log("Kinetic Calculator initialized in Craig Code sandbox.");`
       },
       {
         id: 'f_calc_css',
@@ -398,7 +398,7 @@ function loop() {
 }
 
 loop();
-console.log("Cyber Orbit initialized in Joe Code.");`
+console.log("Cyber Orbit initialized in Craig Code.");`
       }
     ]
   }

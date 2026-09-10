@@ -164,7 +164,7 @@ export function Sidebar({
             </span>
           </button>
 
-          {/* Joe Chess Bot Button */}
+          {/* Chess Bot Button */}
           {onOpenChessSection && (
             <button
               onClick={() => {
@@ -175,7 +175,7 @@ export function Sidebar({
             >
               <span className="flex items-center gap-2">
                 <Swords className="w-4 h-4 text-amber-500" />
-                <span>Play Chess vs Joe</span>
+                <span>Play Chess vs Craig</span>
               </span>
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300 font-semibold">
                 100-3000
@@ -183,7 +183,7 @@ export function Sidebar({
             </button>
           )}
 
-          {/* Joe Code IDE & Agent Button */}
+          {/* Craig Code IDE & Agent Button */}
           {onOpenCodeSection && (
             <button
               onClick={() => {
@@ -194,7 +194,7 @@ export function Sidebar({
             >
               <span className="flex items-center gap-2">
                 <Code2 className="w-4 h-4 text-emerald-500" />
-                <span>Joe Code IDE</span>
+                <span>Craig Code IDE</span>
               </span>
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 font-mono">
                 Editor

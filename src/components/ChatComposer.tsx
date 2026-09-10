@@ -532,7 +532,7 @@ export function ChatComposer({
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask Joe anything, type numbers like 1, signs like @, or paste code..."
+          placeholder="Ask Craig anything, type numbers like 1, signs like @, or paste code..."
           rows={1}
           disabled={disabled}
           className="w-full resize-none bg-transparent px-4 pt-3.5 pb-12 text-[15px] leading-relaxed text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:outline-hidden disabled:opacity-50"
@@ -644,7 +644,7 @@ export function ChatComposer({
               onClick={handleSubmit}
               disabled={(!text.trim() && attachments.length === 0) || disabled}
               type="button"
-              title="Send to Joe"
+              title="Send to Craig"
               aria-label="Send message"
               className="w-8 h-8 rounded-full bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:opacity-90 active:scale-95 transition cursor-pointer"
             >
@@ -660,7 +660,7 @@ export function ChatComposer({
           {enterToSend ? 'Enter to send • Shift + Enter for newline' : 'Shift + Enter to send'}
         </span>
         <span className="flex items-center gap-1.5">
-          <span>Joe AI</span>
+          <span>Craig AI</span>
           <span>•</span>
           <span>Zero-Mistake Architecture</span>
         </span>

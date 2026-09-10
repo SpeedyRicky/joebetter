@@ -36,7 +36,7 @@ export function LivePreview({ files }: LivePreviewProps) {
     const cssFiles = files.filter((f) => f.name.endsWith('.css'));
     const jsFiles = files.filter((f) => f.name.endsWith('.js') || f.name.endsWith('.ts'));
 
-    let html = htmlFile?.content || '<html><body><h1 style="color:white;font-family:sans-serif;">Joe Code Sandbox</h1></body></html>';
+    let html = htmlFile?.content || '<html><body><h1 style="color:white;font-family:sans-serif;">Craig Code Sandbox</h1></body></html>';
 
     // Intercept console.log script to be injected into iframe
     const consoleInterceptorScript = `
@@ -219,7 +219,7 @@ export function LivePreview({ files }: LivePreviewProps) {
             key={reloadKey}
             ref={iframeRef}
             srcDoc={srcDoc}
-            title="Joe Code Sandbox Preview"
+            title="Craig Code Sandbox Preview"
             sandbox="allow-scripts allow-modals allow-forms allow-same-origin"
             className="w-full h-full border-none"
           />

@@ -382,7 +382,7 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Back to Joe</span>
+            <span>Back to Craig</span>
           </button>
 
           <div className="h-4 w-px bg-neutral-200 dark:border-neutral-800" />
@@ -391,7 +391,7 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
             <JoeLogo size="xs" />
             <div className="flex items-baseline gap-1.5">
               <h1 className="text-sm font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
-                Joe Chess Bot
+                Craig Chess Bot
               </h1>
               <span className="text-xs text-neutral-500 font-medium">
                 vs {currentBot.name} ({currentBot.elo} Elo)
@@ -621,7 +621,7 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
               <div className="flex items-center gap-1">
                 <button
                   onClick={handleAskHint}
-                  title="Ask Joe for a Hint"
+                  title="Ask Craig for a Hint"
                   disabled={chess.turn() !== playerColor || !!gameOverResult}
                   className="px-2.5 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-xs font-semibold text-neutral-700 dark:text-neutral-300 disabled:opacity-40 transition flex items-center gap-1.5 cursor-pointer"
                 >
@@ -864,7 +864,7 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
             <div className="p-4 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold text-neutral-900 dark:text-neutral-100">
-                  Select Joe Bot Opponent
+                  Select Bot Opponent
                 </h3>
                 <p className="text-xs text-neutral-500">
                   Choose an Elo from 100 to 3000 just like Chess.com bots

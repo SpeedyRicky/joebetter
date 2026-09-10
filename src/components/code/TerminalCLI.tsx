@@ -11,8 +11,8 @@ export function TerminalCLI({ files }: TerminalCLIProps) {
   const [history, setHistory] = useState<TerminalEntry[]>([
     {
       id: 'init_1',
-      command: 'joe-code --version',
-      output: `Joe Code Agentic CLI v2.4.0
+      command: 'craig-code --version',
+      output: `Craig Code Agentic CLI v2.4.0
 Interactive environment active.
 Type 'help' for command manual, 'test' to run unit tests, or type any instruction in natural language!`,
       status: 'info',
@@ -141,7 +141,7 @@ Type 'help' for command manual, 'test' to run unit tests, or type any instructio
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-neutral-850 bg-neutral-900/80 text-xs text-neutral-400 shrink-0 select-none">
         <div className="flex items-center gap-2">
           <Terminal className="w-3.5 h-3.5 text-neutral-400" />
-          <span className="font-semibold text-neutral-300">Joe Code Agent CLI</span>
+          <span className="font-semibold text-neutral-300">Craig Code Agent CLI</span>
           <span className="text-[10px] px-1.5 py-0.2 rounded bg-neutral-800 text-neutral-400 font-mono">
             bash • zsh
           </span>

@@ -51,7 +51,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 Something unexpected occurred
               </h2>
               <p className="text-sm text-neutral-400 leading-relaxed">
-                Joe encountered an interface error. You can refresh to restore your workspace.
+                Craig encountered an interface error. You can refresh to restore your workspace.
               </p>
             </div>
 

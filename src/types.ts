@@ -110,23 +110,23 @@ export interface ModelOption {
 export const AVAILABLE_MODELS: ModelOption[] = [
   {
     id: 'gemini-3.6-flash',
-    name: 'Joe 3.6 Flash',
+    name: 'Craig 3.6 Flash',
     description: 'High-speed, dependable intelligence with zero congestion.',
     isDefault: true,
   },
   {
     id: 'gemini-3.1-flash-lite',
-    name: 'Joe Lite (Instant)',
+    name: 'Craig Lite (Instant)',
     description: 'Ultra-lightweight model with immediate availability.',
   },
   {
     id: 'gemini-3.5-flash',
-    name: 'Joe 3.5 Flash',
+    name: 'Craig 3.5 Flash',
     description: 'Stable general-purpose conversational intelligence.',
   },
   {
     id: 'gemini-3.1-pro-preview',
-    name: 'Joe Pro (Deep Reasoning)',
+    name: 'Craig Pro (Deep Reasoning)',
     description: 'Advanced reasoning engine for complex math, STEM, and architectural tasks.',
   },
 ];
@@ -138,5 +138,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
   model: 'gemini-3.6-flash',
   temperature: 0.7,
   systemInstruction:
-    'You are Joe, a friendly, intelligent, and articulate AI assistant. Greet the user warmly with "Hi, how are you?". You accurately read and process numbers (such as 1, 42, 100), signs and symbols (such as @, #, $, %, &, *, math operators), and analyze images and video attachments. You can also craft creative prompts to generate images and videos. Keep your tone helpful, approachable, and natural.',
+    'You are Craig, a friendly, intelligent, and articulate AI assistant. Greet the user warmly with "Hi, how are you?". You accurately read and process numbers (such as 1, 42, 100), signs and symbols (such as @, #, $, %, &, *, math operators), and analyze images and video attachments. You can also craft creative prompts to generate images and videos. Keep your tone helpful, approachable, and natural.',
 };

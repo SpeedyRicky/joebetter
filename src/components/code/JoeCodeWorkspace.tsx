@@ -203,13 +203,13 @@ export function JoeCodeWorkspace({ onBackToChat }: JoeCodeWorkspaceProps) {
       {/* Top Navbar */}
       <header className="h-12 border-b border-neutral-800 bg-neutral-900/90 px-3 flex items-center justify-between shrink-0 select-none">
         <div className="flex items-center gap-3">
-          {/* Back to Joe Chat button */}
+          {/* Back to Craig Chat button */}
           <button
             onClick={onBackToChat}
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-neutral-800 hover:border-neutral-700 bg-neutral-950/60 text-neutral-400 hover:text-white text-xs transition cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span className="font-medium">Joe Chat</span>
+            <span className="font-medium">Craig Chat</span>
           </button>
 
           <div className="h-4 w-px bg-neutral-800" />
@@ -218,7 +218,7 @@ export function JoeCodeWorkspace({ onBackToChat }: JoeCodeWorkspaceProps) {
           <div className="flex items-center gap-2">
             <JoeLogo size="xs" />
             <div className="flex items-center gap-1.5">
-              <span className="font-bold text-sm tracking-tight text-white">Joe Code</span>
+              <span className="font-bold text-sm tracking-tight text-white">Craig Code</span>
               <span className="text-[10px] px-1.5 py-0.2 rounded bg-neutral-800 text-neutral-300 font-medium">
                 IDE & Agent
               </span>
@@ -294,7 +294,7 @@ export function JoeCodeWorkspace({ onBackToChat }: JoeCodeWorkspaceProps) {
           {/* AI Agent Panel Toggle */}
           <button
             onClick={() => setAgentOpen(!agentOpen)}
-            title="Toggle Joe Code AI Copilot"
+            title="Toggle Craig Code AI Copilot"
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs transition cursor-pointer ${
               agentOpen
                 ? 'border-neutral-700 bg-neutral-800 text-white'

@@ -51,7 +51,7 @@ export const JoeLogo: React.FC<JoeLogoProps> = ({
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         className="shrink-0 transition-transform duration-200"
-        aria-label="Joe AI Logo"
+        aria-label="Craig AI Logo"
       >
         <defs>
           {/* Subtle architectural gradient: obsidian to deep slate in dark mode, crisp charcoal in light */}
@@ -143,7 +143,7 @@ export const JoeLogo: React.FC<JoeLogoProps> = ({
       {showText && (
         <div className={`flex items-baseline gap-1.5 ${textClassName}`}>
           <span className="font-bold text-neutral-900 dark:text-neutral-100 tracking-tight leading-none text-base sm:text-lg">
-            Joe
+            Craig
           </span>
           <span className="text-[10px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded-md bg-blue-500/10 dark:bg-blue-400/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
             AI

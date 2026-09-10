@@ -235,7 +235,7 @@ export default function App() {
     const assistantPlaceholder: Message = {
       id: assistantMessageId,
       role: 'assistant',
-      content: 'Generating your image with Joe AI visual engine...',
+      content: 'Generating your image with Craig AI visual engine...',
       timestamp: Date.now(),
     };
 
@@ -322,7 +322,7 @@ export default function App() {
     const assistantPlaceholder: Message = {
       id: assistantMessageId,
       role: 'assistant',
-      content: 'Directing and rendering cinematic video clip with Joe AI motion engine...',
+      content: 'Directing and rendering cinematic video clip with Craig AI motion engine...',
       timestamp: Date.now(),
     };
 

@@ -12,36 +12,36 @@ interface WelcomeScreenProps {
 const CONVERSATION_STARTERS = [
   {
     icon: Swords,
-    label: 'Play Chess vs Joe Bot',
-    text: 'Play chess against Joe with custom Elo from 100 to 3000 just like Chess.com bots',
+    label: 'Play Chess vs Craig',
+    text: 'Play chess against Craig with custom Elo from 100 to 3000 just like Chess.com bots',
     description: 'Interactive board, Elo bots (Martin, Nelson, Magnus, 3000), hints & analysis',
     isChessAction: true,
   },
   {
     icon: Code2,
-    label: 'Joe Code IDE',
-    text: 'Switch to Joe Code developer IDE with live sandbox and CLI',
+    label: 'Craig Code IDE',
+    text: 'Switch to Craig Code developer IDE with live sandbox and CLI',
     description: 'Open full-stack code editor and terminal',
     isCodeAction: true,
   },
   {
     icon: MessageSquare,
     label: 'Say Hello',
-    text: 'Hi Joe, how are you doing today?',
-    description: 'Start a friendly conversation with Joe',
+    text: 'Hi Craig, how are you doing today?',
+    description: 'Start a friendly conversation with Craig',
   },
   {
     icon: Image,
     label: 'Generate an Image',
     text: 'Generate an image of a serene mountain lake at sunrise with mist and pine trees',
-    description: 'Ask Joe to generate artwork or photos',
+    description: 'Ask Craig to generate artwork or photos',
   },
 ];
 
 export function WelcomeScreen({ onSelectPrompt, onOpenCodeSection, onOpenChessSection }: WelcomeScreenProps) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-4 py-10 max-w-2xl mx-auto w-full text-center animate-fade-in">
-      {/* Joe Logo */}
+      {/* Craig Logo */}
       <div className="mb-5 flex flex-col items-center">
         <JoeLogo size="xl" />
       </div>
@@ -51,7 +51,7 @@ export function WelcomeScreen({ onSelectPrompt, onOpenCodeSection, onOpenChessSe
       </h1>
 
       <p className="text-[15px] text-neutral-500 dark:text-neutral-400 mb-8 max-w-md leading-relaxed">
-        I’m <span className="font-semibold text-neutral-900 dark:text-neutral-100">Joe</span>. Chat with me, play chess against me from <span className="font-semibold text-amber-600 dark:text-amber-400">Elo 100 to 3000</span>, or write and execute code in <span className="font-semibold text-neutral-900 dark:text-neutral-100">Joe Code</span>.
+        I’m <span className="font-semibold text-neutral-900 dark:text-neutral-100">Craig</span>. Chat with me, play chess against me from <span className="font-semibold text-amber-600 dark:text-amber-400">Elo 100 to 3000</span>, or write and execute code in <span className="font-semibold text-neutral-900 dark:text-neutral-100">Craig Code</span>.
       </p>
 
       {/* Conversation Starters Grid */}
