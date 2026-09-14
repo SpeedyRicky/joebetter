@@ -32,7 +32,7 @@ import { SoundManager } from '../chess/chessSounds';
 
 const soundManager = new SoundManager();
 
-export type GameMode = 'ai' | '2player';
+export type GameMode = 'ai' | '2player' | 'boss_solo' | 'boss_coop';
 export type AIDifficulty = 'easy' | 'normal' | 'hard';
 export type MapType =
   | 'classic'
@@ -45,7 +45,11 @@ export type MapType =
   | 'frozen_summit'
   | 'haunted_crypt'
   | 'neon_downtown'
-  | 'desert_ruins';
+  | 'desert_ruins'
+  | 'boss_citadel'
+  | 'boss_titan_citadel'
+  | 'boss_reaper_crypt'
+  | 'boss_dragon_fortress';
 export type CharacterClass = 'vanguard' | 'marksman' | 'mage' | 'assassin' | 'special';
 export type CharacterRarity = 'common' | 'rare' | 'epic' | 'legendary' | 'mythic';
 export type AttackStyle = 'ranged' | 'melee' | 'teleport' | 'pull';
@@ -964,6 +968,212 @@ export const CHARACTERS: Character[] = [
     cost: 440,
     description: 'Cosmic temporal regulator who hovers in celestial flight and fires quantum stasis spheres that lock opponents in mid-air time suspension (3s cooldown, breaks after 4 hits, CC targets take 1/4 damage)!',
   },
+  {
+    id: 'void_assassin',
+    name: 'Void Shinobi',
+    title: 'Shadow Rift Ninja',
+    rarity: 'mythic',
+    class: 'assassin',
+    color: '#3b0764',
+    secondaryColor: '#c084fc',
+    weapon: 'Nether Void Daggers',
+    projectileType: 'teleport_strike',
+    maxHp: 110,
+    speed: 6.4,
+    jumpForce: 16.0,
+    attackCooldown: 280,
+    attackDamage: 35,
+    projectileSpeed: 0,
+    canTeleport: true,
+    isMelee: true,
+    attackStyle: 'teleport',
+    doubleJump: true,
+    tripleJump: true,
+    unlockedByDefault: true,
+    cost: 0,
+    description: 'Mythic void ninja who executes a 4s cooldown teleport blink backstab or unleashes fast nether blade melee flurries!',
+  },
+  {
+    id: 'thunder_valkyrie',
+    name: 'Thunder Valkyrie',
+    title: 'Asgardian Stormbringer',
+    rarity: 'legendary',
+    class: 'vanguard',
+    color: '#1e3a8a',
+    secondaryColor: '#60a5fa',
+    weapon: 'Storm Mjolnir Hammer',
+    projectileType: 'lightning',
+    maxHp: 150,
+    speed: 5.6,
+    jumpForce: 15.2,
+    attackCooldown: 310,
+    attackDamage: 32,
+    projectileSpeed: 14,
+    canFly: true,
+    doubleJump: true,
+    canBlock: true,
+    unlockedByDefault: true,
+    cost: 0,
+    description: 'Legendary winged storm warrior who flies across the sky, blocks attacks with electric aegis, and hurls charged lightning bolts!',
+  },
+  {
+    id: 'monkey_king',
+    name: 'Sun Wukong',
+    title: 'Monkey King / Great Sage',
+    rarity: 'mythic',
+    class: 'special',
+    color: '#b45309',
+    secondaryColor: '#facc15',
+    weapon: 'Golden Ruyi Jingu Bang',
+    projectileType: 'melee_slam',
+    maxHp: 140,
+    speed: 6.2,
+    jumpForce: 16.5,
+    attackCooldown: 270,
+    attackDamage: 36,
+    projectileSpeed: 8,
+    isMelee: true,
+    attackStyle: 'melee',
+    doubleJump: true,
+    tripleJump: true,
+    canFly: true,
+    unlockedByDefault: true,
+    cost: 0,
+    description: 'Mythic Monkey King who rides the golden Nimbus cloud with triple jumps and crushes foes with his size-shifting Golden Staff!',
+  },
+  {
+    id: 'neon_samurai',
+    name: 'Neon Samurai',
+    title: 'Cyber Katana Ronin',
+    rarity: 'epic',
+    class: 'assassin',
+    color: '#064e3b',
+    secondaryColor: '#10b981',
+    weapon: 'Plasma Edge Katana',
+    projectileType: 'wind_slash',
+    maxHp: 120,
+    speed: 6.0,
+    jumpForce: 15.5,
+    attackCooldown: 290,
+    attackDamage: 31,
+    projectileSpeed: 15,
+    doubleJump: true,
+    reversesAttacks: true,
+    unlockedByDefault: true,
+    cost: 0,
+    description: 'Futuristic ronin who unleashes razor-sharp neon wind slashes and deflects hostile projectiles with high-frequency blade parries!',
+  },
+  {
+    id: 'phoenix_mage',
+    name: 'Phoenix Pyromancer',
+    title: 'Immortal Flame Empress',
+    rarity: 'legendary',
+    class: 'mage',
+    color: '#991b1b',
+    secondaryColor: '#fb923c',
+    weapon: 'Solar Phoenix Orbs',
+    projectileType: 'star_nova',
+    maxHp: 115,
+    speed: 5.5,
+    jumpForce: 15.0,
+    attackCooldown: 300,
+    attackDamage: 34,
+    projectileSpeed: 13,
+    canFly: true,
+    doubleJump: true,
+    unlockedByDefault: true,
+    cost: 0,
+    description: 'Immortal sorceress with blazing fiery wings, levitating above battlefields and firing explosive solar phoenix novas!',
+  },
+  {
+    id: 'shadow_blade',
+    name: 'Shadow Duelist',
+    title: 'Phantom Blade Assassin',
+    rarity: 'rare',
+    class: 'assassin',
+    color: '#18181b',
+    secondaryColor: '#a855f7',
+    weapon: 'Dual Nether Daggers',
+    projectileType: 'slash',
+    maxHp: 118,
+    speed: 6.1,
+    jumpForce: 15.4,
+    attackCooldown: 260,
+    attackDamage: 28,
+    projectileSpeed: 12,
+    doubleJump: true,
+    unlockedByDefault: true,
+    cost: 0,
+    description: 'Agile shadow skirmisher who chains rapid-fire nether slashes with unmatched agility and double jumps!',
+  },
+];
+
+export const BOSSES: Character[] = [
+  {
+    id: 'boss_titan',
+    name: 'Titan Colossus',
+    title: 'Golem Overlord (Boss)',
+    rarity: 'mythic',
+    class: 'vanguard',
+    color: '#b91c1c',
+    secondaryColor: '#ef4444',
+    weapon: 'Seismic Hammer',
+    projectileType: 'melee_slam',
+    maxHp: 500,
+    speed: 3.8,
+    jumpForce: 13,
+    attackCooldown: 550,
+    attackDamage: 24,
+    projectileSpeed: 9,
+    isMelee: true,
+    canBlock: true,
+    unlockedByDefault: true,
+    cost: 0,
+    description: 'Boss 1: Colossal stone golem with 500 HP, massive size, heavy ground shockwaves, and impenetrable shield armor.',
+  },
+  {
+    id: 'boss_reaper',
+    name: 'Shadow Reaper',
+    title: 'Void Phantom (Boss)',
+    rarity: 'mythic',
+    class: 'assassin',
+    color: '#581c87',
+    secondaryColor: '#9333ea',
+    weapon: 'Nether Scythe',
+    projectileType: 'scythe',
+    maxHp: 450,
+    speed: 5.5,
+    jumpForce: 16.5,
+    attackCooldown: 480,
+    attackDamage: 20,
+    projectileSpeed: 15,
+    canTeleport: true,
+    timeStopsEnemy: true,
+    unlockedByDefault: true,
+    cost: 0,
+    description: 'Boss 2: Void phantom shadow with 450 HP, gigantic stature, instant teleport strikes, and time-stasis chronospheres.',
+  },
+  {
+    id: 'boss_dragon',
+    name: 'Cyber Dragon Mech',
+    title: 'Apex Destroyer (Boss)',
+    rarity: 'mythic',
+    class: 'special',
+    color: '#ea580c',
+    secondaryColor: '#f97316',
+    weapon: 'Plasma Dragon Breath',
+    projectileType: 'dragon_breath',
+    maxHp: 550,
+    speed: 5.0,
+    jumpForce: 16.5,
+    attackCooldown: 520,
+    attackDamage: 22,
+    projectileSpeed: 16,
+    canFly: true,
+    unlockedByDefault: true,
+    cost: 0,
+    description: 'Boss 3: Apex mechanical dragon with 550 HP, massive scale, continuous flight hovering, and devastating plasma magma breath.',
+  },
 ];
 
 interface Platform {
@@ -977,7 +1187,7 @@ interface Platform {
 
 interface Projectile {
   id: number;
-  owner: 1 | 2;
+  owner: number;
   x: number;
   y: number;
   vx: number;
@@ -1043,6 +1253,7 @@ interface PlayerState {
   reflectPulseTimer?: number;
   reflectCooldownTimer: number;
   freezeCooldownTimer: number;
+  lastTeleportTime: number;
   ccHitCount: number;
 }
 
@@ -1433,6 +1644,170 @@ const renderArenaBackground = (
       ctx.arc(dx, dy, 1.5, 0, Math.PI * 2);
       ctx.fill();
     }
+  } else if (map === 'boss_titan_citadel' || map === 'boss_citadel') {
+    // 🌋 TITAN COLOSSUS: Volcanic Magma Citadel
+    const citadelGrad = ctx.createLinearGradient(0, 0, 0, H);
+    citadelGrad.addColorStop(0, '#0c0202');
+    citadelGrad.addColorStop(0.4, '#2d0606');
+    citadelGrad.addColorStop(0.8, '#450a0a');
+    citadelGrad.addColorStop(1, '#7f1d1d');
+    ctx.fillStyle = citadelGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Towering fortress battlements in background
+    ctx.fillStyle = '#1c1917';
+    ctx.beginPath();
+    ctx.moveTo(0, H - 120);
+    ctx.lineTo(80, H - 240);
+    ctx.lineTo(140, H - 210);
+    ctx.lineTo(240, H - 290);
+    ctx.lineTo(W / 2, H - 200);
+    ctx.lineTo(W - 240, H - 290);
+    ctx.lineTo(W - 140, H - 210);
+    ctx.lineTo(W - 80, H - 240);
+    ctx.lineTo(W, H - 120);
+    ctx.lineTo(W, H);
+    ctx.lineTo(0, H);
+    ctx.closePath();
+    ctx.fill();
+
+    // Cascading molten lava falls
+    [160, W - 160].forEach((lx) => {
+      const lavaGrad = ctx.createLinearGradient(lx, 80, lx, H);
+      lavaGrad.addColorStop(0, '#f97316');
+      lavaGrad.addColorStop(0.5, '#ef4444');
+      lavaGrad.addColorStop(1, '#b91c1c');
+      ctx.fillStyle = lavaGrad;
+      ctx.fillRect(lx - 10, 100, 20, H - 140);
+
+      // Lava flow highlights
+      ctx.fillStyle = '#fef08a';
+      const streamY = (now * 0.15) % (H - 140);
+      ctx.fillRect(lx - 4, 100 + streamY, 8, 25);
+    });
+
+    // Glowing obsidian runic monoliths
+    [60, 260, W - 260, W - 60].forEach((px, idx) => {
+      ctx.fillStyle = '#292524';
+      ctx.fillRect(px - 18, 60, 36, H - 60);
+      // Molten runic fissure
+      ctx.fillStyle = idx % 2 === 0 ? '#ef4444' : '#f97316';
+      ctx.fillRect(px - 4, 80, 8, H - 120);
+      // Runic crossbeams
+      for (let r = 100; r < H - 100; r += 45) {
+        ctx.fillRect(px - 12, r, 24, 4);
+      }
+    });
+
+    // Floating volcanic magma embers
+    ctx.fillStyle = '#fef08a';
+    for (let i = 0; i < 28; i++) {
+      const ex = (i * 43 + now * 0.09) % W;
+      const ey = H - ((i * 31 + now * 0.12) % (H - 40));
+      ctx.beginPath();
+      ctx.arc(ex, ey, i % 3 === 0 ? 3 : 1.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (map === 'boss_reaper_crypt') {
+    // 🌌 SHADOW REAPER: Nether Void Crypt
+    const voidGrad = ctx.createRadialGradient(W / 2, H / 2, 20, W / 2, H / 2, W * 0.7);
+    voidGrad.addColorStop(0, '#3b0764');
+    voidGrad.addColorStop(0.5, '#1e1035');
+    voidGrad.addColorStop(1, '#05020a');
+    ctx.fillStyle = voidGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Swirling cosmic galaxy rift in center
+    ctx.save();
+    ctx.translate(W / 2, H / 2 - 30);
+    ctx.rotate(now * 0.001);
+    ctx.strokeStyle = 'rgba(168, 85, 247, 0.25)';
+    ctx.lineWidth = 3;
+    for (let ring = 30; ring <= 150; ring += 35) {
+      ctx.beginPath();
+      ctx.ellipse(0, 0, ring, ring * 0.55, ring * 0.1, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Floating necrotic tomb obelisks
+    [80, 240, W - 240, W - 80].forEach((ox, i) => {
+      const obeliskFloat = Math.sin(now * 0.003 + i) * 6;
+      ctx.fillStyle = '#1e1b4b';
+      ctx.fillRect(ox - 14, 50 + obeliskFloat, 28, H - 120);
+      // Neon violet soul runes
+      ctx.fillStyle = '#c084fc';
+      ctx.fillRect(ox - 3, 70 + obeliskFloat, 6, H - 160);
+      ctx.beginPath();
+      ctx.arc(ox, 40 + obeliskFloat, 6, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Drifting phantom wisps and soul particles
+    ctx.fillStyle = 'rgba(216, 180, 254, 0.7)';
+    for (let i = 0; i < 24; i++) {
+      const wx = (i * 59 + Math.sin(now * 0.004 + i) * 30 + now * 0.03) % W;
+      const wy = H - ((i * 37 + now * 0.08) % (H - 30));
+      ctx.beginPath();
+      ctx.arc(wx, wy, i % 2 === 0 ? 2.5 : 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (map === 'boss_dragon_fortress') {
+    // ⚡ CYBER DRAGON MECH: Sky Cyber Fortress
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
+    skyGrad.addColorStop(0, '#030712');
+    skyGrad.addColorStop(0.5, '#0f172a');
+    skyGrad.addColorStop(0.85, '#1e293b');
+    skyGrad.addColorStop(1, '#ea580c');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Futuristic sky city skyscrapers and neon clouds
+    ctx.fillStyle = '#090d16';
+    for (let b = 0; b < 10; b++) {
+      const bx = b * 88 - 20;
+      const bh = 140 + ((b * 47) % 120);
+      ctx.fillRect(bx, H - bh, 70, bh);
+      // Window matrix lights
+      ctx.fillStyle = b % 2 === 0 ? '#38bdf8' : '#f97316';
+      for (let wy = H - bh + 15; wy < H - 20; wy += 22) {
+        ctx.fillRect(bx + 12, wy, 8, 6);
+        ctx.fillRect(bx + 35, wy, 8, 6);
+      }
+      ctx.fillStyle = '#090d16';
+    }
+
+    // High-altitude rotating plasma turbine engines in sky
+    [130, W - 130].forEach((tx) => {
+      ctx.save();
+      ctx.translate(tx, 70);
+      ctx.rotate(now * 0.005);
+      ctx.strokeStyle = '#f97316';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(0, 0, 32, 0, Math.PI * 2);
+      ctx.stroke();
+      for (let a = 0; a < 4; a++) {
+        const ang = (a * Math.PI) / 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(Math.cos(ang) * 30, Math.sin(ang) * 30);
+        ctx.stroke();
+      }
+      ctx.restore();
+    });
+
+    // Lightning discharge flashes in cyber clouds
+    if (Math.sin(now * 0.015) > 0.88) {
+      ctx.strokeStyle = 'rgba(250, 204, 21, 0.4)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(W / 2 - 80, 20);
+      ctx.lineTo(W / 2 - 40, 70);
+      ctx.lineTo(W / 2 - 10, 50);
+      ctx.lineTo(W / 2 + 60, 110);
+      ctx.stroke();
+    }
   } else {
     // Classic Retro Scratch grid
     ctx.fillStyle = '#0f172a';
@@ -1463,6 +1838,309 @@ const PLAYER_THEMES = [
   { color: '#a855f7', cape: '#9333ea', bg: 'rgba(168, 85, 247, 0.25)', label: 'P4 💥', aiLabel: 'TITAN 🤖' },
 ];
 
+const renderBossSprite = (
+  ctx: CanvasRenderingContext2D,
+  p: PlayerState,
+  now: number,
+  dir: number
+) => {
+  const cid = p.character.id;
+  const W = p.width; // 56
+  const H = p.height; // 80
+
+  ctx.save();
+  ctx.translate(p.x, p.y);
+
+  if (cid === 'boss_titan') {
+    // === TITAN COLOSSUS (Golem Overlord) ===
+    // 1. Molten Ground Pedestal Aura
+    const pulse = Math.sin(now * 0.007) * 4;
+    ctx.beginPath();
+    ctx.ellipse(W / 2, H + 2, 28 + pulse, 9, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(239, 68, 68, 0.4)';
+    ctx.fill();
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    // 2. Heavy Obsidian Armor Legs
+    ctx.fillStyle = p.isHit ? '#ffffff' : '#1c1917';
+    ctx.fillRect(8, 48, 16, 32);
+    ctx.fillRect(W - 24, 48, 16, 32);
+    // Glowing lava magma streaks on legs
+    ctx.fillStyle = '#ef4444';
+    ctx.fillRect(14, 52, 4, 22);
+    ctx.fillRect(W - 18, 52, 4, 22);
+
+    // 3. Massive Torso & Chestplate
+    ctx.fillStyle = p.isHit ? '#ffffff' : '#292524';
+    ctx.beginPath();
+    ctx.roundRect(4, 18, W - 8, 34, 6);
+    ctx.fill();
+    ctx.strokeStyle = '#78350f';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Heavy shoulder pauldrons
+    ctx.fillStyle = p.isHit ? '#ffffff' : '#1c1917';
+    ctx.beginPath();
+    ctx.roundRect(0, 14, 16, 16, 4);
+    ctx.roundRect(W - 16, 14, 16, 16, 4);
+    ctx.fill();
+
+    // Magma Core in Chest (Pulsing glowing orb)
+    ctx.save();
+    const grad = ctx.createRadialGradient(W / 2, 34, 2, W / 2, 34, 12);
+    grad.addColorStop(0, '#fef08a');
+    grad.addColorStop(0.5, '#f97316');
+    grad.addColorStop(1, 'rgba(185, 28, 28, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(W / 2, 34, 12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // 4. Horned Colossus Helm & Head
+    ctx.fillStyle = p.isHit ? '#ffffff' : '#1c1917';
+    ctx.beginPath();
+    ctx.roundRect(W / 2 - 14, 2, 28, 18, 5);
+    ctx.fill();
+
+    // Jagged Golem Horns
+    ctx.fillStyle = '#78350f';
+    ctx.beginPath();
+    ctx.moveTo(W / 2 - 14, 8);
+    ctx.lineTo(W / 2 - 22, -4);
+    ctx.lineTo(W / 2 - 8, 4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(W / 2 + 14, 8);
+    ctx.lineTo(W / 2 + 22, -4);
+    ctx.lineTo(W / 2 + 8, 4);
+    ctx.closePath();
+    ctx.fill();
+
+    // Glowing Molten Eyes / Visor
+    ctx.fillStyle = '#fbbf24';
+    const eyeX = dir === 1 ? W / 2 + 2 : W / 2 - 10;
+    ctx.fillRect(eyeX, 8, 8, 3.5);
+
+    // 5. Giant Seismic Warhammer
+    ctx.save();
+    ctx.translate(W / 2 + dir * 18, 36);
+    ctx.rotate(dir * (Math.sin(now * 0.004) * 0.15 + 0.2));
+    // Shaft
+    ctx.fillStyle = '#44403c';
+    ctx.fillRect(-3, -28, 6, 50);
+    // Hammer head
+    ctx.fillStyle = '#1c1917';
+    ctx.fillRect(-14, -36, 28, 16);
+    // Glowing rune on hammer
+    ctx.fillStyle = '#ef4444';
+    ctx.fillRect(-8, -32, 16, 8);
+    ctx.restore();
+
+  } else if (cid === 'boss_reaper') {
+    // === SHADOW REAPER (Void Phantom) ===
+    // 1. Cosmic Void Distortion Aura
+    ctx.save();
+    const voidRot = now * 0.002;
+    ctx.translate(W / 2, H / 2);
+    ctx.rotate(voidRot);
+    ctx.strokeStyle = 'rgba(168, 85, 247, 0.45)';
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([6, 6]);
+    ctx.beginPath();
+    ctx.arc(0, 0, 36, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    // 2. Drifting Spectral Shadow Tendrils
+    ctx.fillStyle = 'rgba(30, 10, 60, 0.85)';
+    [-12, -4, 4, 12].forEach((offset, idx) => {
+      const tentacleWave = Math.sin(now * 0.008 + idx) * 8;
+      ctx.beginPath();
+      ctx.moveTo(W / 2 + offset, 44);
+      ctx.quadraticCurveTo(W / 2 + offset - dir * 10, 65, W / 2 + offset + tentacleWave - dir * 14, H + 8);
+      ctx.lineTo(W / 2 + offset + 6, 44);
+      ctx.closePath();
+      ctx.fill();
+    });
+
+    // 3. Ethereal Flowing Nether Cloak
+    const cloakFlutter = Math.sin(now * 0.01) * 6;
+    ctx.fillStyle = p.isHit ? '#ffffff' : '#3b0764';
+    ctx.beginPath();
+    ctx.moveTo(W / 2, 12);
+    ctx.lineTo(W / 2 - dir * 24, 48 + cloakFlutter);
+    ctx.lineTo(W / 2 - dir * 16, 76 + cloakFlutter);
+    ctx.lineTo(W / 2 + dir * 18, 54);
+    ctx.closePath();
+    ctx.fill();
+
+    // Cloak Torso
+    ctx.fillStyle = p.isHit ? '#ffffff' : '#1e1b4b';
+    ctx.beginPath();
+    ctx.roundRect(10, 20, W - 20, 38, 8);
+    ctx.fill();
+
+    // 4. Void Hood & Piercing Phantom Eyes
+    ctx.fillStyle = p.isHit ? '#ffffff' : '#090514';
+    ctx.beginPath();
+    ctx.arc(W / 2, 16, 15, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Glowing Violet Spectral Eye Slits
+    ctx.fillStyle = '#c084fc';
+    const rEyeX = dir === 1 ? W / 2 + 2 : W / 2 - 8;
+    ctx.beginPath();
+    ctx.ellipse(rEyeX, 15, 4, 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Floating Necrotic Occult Crown
+    ctx.save();
+    ctx.translate(W / 2, 2);
+    ctx.strokeStyle = '#a855f7';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 4; i++) {
+      const angle = voidRot * 2 + (i * Math.PI) / 2;
+      const rx = Math.cos(angle) * 16;
+      const ry = Math.sin(angle) * 6;
+      ctx.fillStyle = '#e9d5ff';
+      ctx.fillRect(rx - 2, ry - 2, 4, 4);
+    }
+    ctx.restore();
+
+    // 5. Massive Nether Scythe
+    ctx.save();
+    ctx.translate(W / 2 + dir * 16, 32);
+    const scytheSwing = Math.sin(now * 0.005) * 0.2;
+    ctx.rotate(dir * (0.3 + scytheSwing));
+    // Staff / Pole
+    ctx.fillStyle = '#2e1065';
+    ctx.fillRect(-2.5, -42, 5, 78);
+    // Curved Crystalline Blade
+    ctx.strokeStyle = '#c084fc';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(0, -40);
+    ctx.quadraticCurveTo(dir * 36, -48, dir * 42, -18);
+    ctx.lineTo(dir * 28, -24);
+    ctx.quadraticCurveTo(dir * 18, -34, 0, -32);
+    ctx.closePath();
+    ctx.fillStyle = '#581c87';
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+
+  } else if (cid === 'boss_dragon') {
+    // === CYBER DRAGON MECH (Apex Destroyer) ===
+    // 1. Dragon Mechanical Tail
+    const tailSwing = Math.sin(now * 0.009) * 12;
+    ctx.strokeStyle = '#ea580c';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(W / 2 - dir * 12, 54);
+    ctx.quadraticCurveTo(W / 2 - dir * 28, 64 + tailSwing, W / 2 - dir * 38, 50 + tailSwing);
+    ctx.stroke();
+    // Tail blade fin
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(W / 2 - dir * 42, 46 + tailSwing, 8, 8);
+
+    // 2. Massive Articulated Cyber Dragon Wings
+    const wingFlap = Math.sin(now * 0.012) * 16;
+    [-1, 1].forEach((side) => {
+      ctx.save();
+      ctx.fillStyle = '#1e293b';
+      ctx.strokeStyle = '#f97316';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(W / 2, 22);
+      ctx.lineTo(W / 2 + side * (38 + wingFlap * 0.2), 2 + wingFlap * side);
+      ctx.lineTo(W / 2 + side * 46, 24 + wingFlap * side * 0.5);
+      ctx.lineTo(W / 2 + side * 22, 40);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      // Jet Thruster on wing tip
+      ctx.fillStyle = '#facc15';
+      ctx.beginPath();
+      ctx.arc(W / 2 + side * (38 + wingFlap * 0.2), 2 + wingFlap * side, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
+
+    // 3. Cyber Armored Legs & Boosters
+    ctx.fillStyle = p.isHit ? '#ffffff' : '#334155';
+    ctx.fillRect(8, 50, 16, 30);
+    ctx.fillRect(W - 24, 50, 16, 30);
+    ctx.fillStyle = '#f97316';
+    ctx.fillRect(12, 68, 8, 12);
+    ctx.fillRect(W - 20, 68, 8, 12);
+
+    // 4. Main Titanium Dragon Body
+    ctx.fillStyle = p.isHit ? '#ffffff' : '#0f172a';
+    ctx.beginPath();
+    ctx.roundRect(6, 18, W - 12, 36, 6);
+    ctx.fill();
+    ctx.strokeStyle = '#ea580c';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Shoulder Missile Pods
+    ctx.fillStyle = p.isHit ? '#ffffff' : '#475569';
+    ctx.fillRect(0, 14, 14, 12);
+    ctx.fillRect(W - 14, 14, 14, 12);
+    ctx.fillStyle = '#ef4444';
+    ctx.fillRect(2, 16, 4, 4);
+    ctx.fillRect(W - 6, 16, 4, 4);
+
+    // Plasma Reactor Core
+    const reactorGlow = 0.6 + Math.sin(now * 0.015) * 0.4;
+    ctx.save();
+    ctx.fillStyle = `rgba(249, 115, 22, ${reactorGlow})`;
+    ctx.beginPath();
+    ctx.arc(W / 2, 36, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fef08a';
+    ctx.beginPath();
+    ctx.arc(W / 2, 36, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // 5. Cyber Dragon Head & Laser Visor
+    ctx.fillStyle = p.isHit ? '#ffffff' : '#1e293b';
+    ctx.beginPath();
+    ctx.roundRect(W / 2 - 14, 4, 28, 18, 4);
+    ctx.fill();
+
+    // Dragon Horns
+    ctx.fillStyle = '#ea580c';
+    ctx.beginPath();
+    ctx.moveTo(W / 2 - 12, 6);
+    ctx.lineTo(W / 2 - 22, -6);
+    ctx.lineTo(W / 2 - 6, 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(W / 2 + 12, 6);
+    ctx.lineTo(W / 2 + 22, -6);
+    ctx.lineTo(W / 2 + 6, 2);
+    ctx.closePath();
+    ctx.fill();
+
+    // Glowing Dragon Optics & Mandible
+    ctx.fillStyle = '#facc15';
+    const dEyeX = dir === 1 ? W / 2 + 2 : W / 2 - 10;
+    ctx.fillRect(dEyeX, 10, 8, 3.5);
+    ctx.fillStyle = '#f97316';
+    ctx.fillRect(W / 2 + (dir === 1 ? 6 : -14), 16, 8, 4);
+  }
+
+  ctx.restore();
+};
+
 const renderCharacterSprite = (
   ctx: CanvasRenderingContext2D,
   p: PlayerState,
@@ -1473,6 +2151,24 @@ const renderCharacterSprite = (
   const dir = p.facing === 'right' ? 1 : -1;
   const themeIndex = Math.max(0, Math.min(PLAYER_THEMES.length - 1, playerNum - 1));
   const theme = PLAYER_THEMES[themeIndex];
+
+  if (p.character.id.startsWith('boss_')) {
+    renderBossSprite(ctx, p, now, dir);
+
+    // Active Shield Block Barrier Pulse for Boss
+    if (p.shieldPulseTimer && p.shieldPulseTimer > 0) {
+      ctx.save();
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(p.x + p.width / 2 + dir * 20, p.y + p.height / 2, 42, -Math.PI * 0.45, Math.PI * 0.45);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(250, 204, 21, 0.3)';
+      ctx.fill();
+      ctx.restore();
+    }
+    return;
+  }
 
   ctx.save();
   ctx.translate(p.x, p.y);
@@ -1581,7 +2277,7 @@ const renderCharacterSprite = (
     // Silver Knight Helmet Crest & Visor Slit
     ctx.fillStyle = '#94a3b8';
     ctx.fillRect(p.width / 2 - 8, 2, 16, 5);
-    ctx.fillStyle = isP1 ? '#3b82f6' : '#ef4444';
+    ctx.fillStyle = playerNum === 1 ? '#3b82f6' : '#ef4444';
     ctx.fillRect(p.width / 2 - 3, -4, 6, 7); // helmet plume
     // Broadsword in hand
     ctx.fillStyle = '#cbd5e1';
@@ -1904,6 +2600,103 @@ const renderCharacterSprite = (
     ctx.lineWidth = 1.5;
     ctx.strokeRect(-12, -12, 24, 24);
     ctx.restore();
+  } else if (cid === 'void_assassin') {
+    // Void Shinobi Cowl, Glowing Violet Mask & Nether Kunai
+    ctx.fillStyle = '#c084fc';
+    ctx.fillRect(p.width / 2 - dir * 2, 7, dir * 7, 3);
+    // Void mist wisp
+    const mistFloat = Math.sin(now * 0.01) * 3;
+    ctx.fillStyle = 'rgba(192, 132, 252, 0.4)';
+    ctx.beginPath();
+    ctx.arc(p.width / 2 - dir * 8, 14 + mistFloat, 5, 0, Math.PI * 2);
+    ctx.fill();
+    // Nether Dagger in hand
+    ctx.fillStyle = '#a855f7';
+    ctx.fillRect(p.width / 2 + dir * 6, 17, dir * 10, 3);
+  } else if (cid === 'thunder_valkyrie') {
+    // Golden Winged Tiara & Storm Mjolnir
+    ctx.fillStyle = '#fde047';
+    ctx.beginPath();
+    ctx.moveTo(p.width / 2 - 8, 4);
+    ctx.lineTo(p.width / 2 - 12, -4);
+    ctx.lineTo(p.width / 2, 0);
+    ctx.lineTo(p.width / 2 + 12, -4);
+    ctx.lineTo(p.width / 2 + 8, 4);
+    ctx.closePath();
+    ctx.fill();
+    // Storm Hammer
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(p.width / 2 + dir * 8, 12, dir * 8, 10);
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillRect(p.width / 2 + dir * 6, 16, dir * 4, 3);
+  } else if (cid === 'monkey_king') {
+    // Golden Phoenix Feather Headband & Golden Ruyi Jingu Bang Staff
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(p.width / 2 - 7, 3, 14, 3);
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(p.width / 2, 3);
+    ctx.quadraticCurveTo(p.width / 2 - dir * 10, -8, p.width / 2 - dir * 16, -14);
+    ctx.stroke();
+    // Golden Staff
+    ctx.save();
+    ctx.translate(p.width / 2 + dir * 8, 18);
+    ctx.rotate(dir * 0.4);
+    ctx.fillStyle = '#b45309';
+    ctx.fillRect(-2, -18, 4, 36);
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(-3, -20, 6, 5);
+    ctx.fillRect(-3, 15, 6, 5);
+    ctx.restore();
+    // Nimbus Cloud at feet
+    ctx.fillStyle = 'rgba(254, 240, 138, 0.7)';
+    ctx.beginPath();
+    ctx.arc(p.width / 2 - 6, p.height + 1, 6, 0, Math.PI * 2);
+    ctx.arc(p.width / 2, p.height + 2, 7, 0, Math.PI * 2);
+    ctx.arc(p.width / 2 + 6, p.height + 1, 6, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (cid === 'neon_samurai') {
+    // Cyber Katana Visor & Neon Green Plasma Blade
+    ctx.fillStyle = '#10b981';
+    ctx.fillRect(p.width / 2 - 6, 7, 12, 3);
+    // Katana Scabbard on back
+    ctx.save();
+    ctx.translate(p.width / 2 - dir * 4, 16);
+    ctx.rotate(dir * -0.5);
+    ctx.fillStyle = '#064e3b';
+    ctx.fillRect(-2, -14, 4, 28);
+    ctx.fillStyle = '#10b981';
+    ctx.fillRect(-2.5, -16, 5, 4);
+    ctx.restore();
+  } else if (cid === 'phoenix_mage') {
+    // Solar Phoenix Halo & Blazing Fire Wings
+    const flameWing = Math.sin(now * 0.015) * 10;
+    ctx.fillStyle = 'rgba(249, 115, 22, 0.75)';
+    ctx.strokeStyle = '#fbbf24';
+    ctx.lineWidth = 1.5;
+    [-1, 1].forEach((side) => {
+      ctx.beginPath();
+      ctx.moveTo(p.width / 2, 14);
+      ctx.lineTo(p.width / 2 + side * 24, 4 + flameWing * side);
+      ctx.lineTo(p.width / 2 + side * 18, 22);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    });
+    // Orbiting solar flame orb
+    ctx.fillStyle = '#f97316';
+    const sOrbFloat = Math.sin(now * 0.01) * 5;
+    ctx.beginPath();
+    ctx.arc(p.width / 2 + dir * 14, 16 + sOrbFloat, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (cid === 'shadow_blade') {
+    // Shadow Cowl & Dual Nether Daggers
+    ctx.fillStyle = '#a855f7';
+    ctx.fillRect(p.width / 2 - dir * 4, 7, dir * 8, 3);
+    ctx.fillStyle = '#9333ea';
+    ctx.fillRect(p.width / 2 + dir * 6, 18, dir * 8, 3);
+    ctx.fillRect(p.width / 2 - dir * 10, 18, dir * 6, 3);
   }
 
   ctx.restore();
@@ -2054,13 +2847,15 @@ export const TwoPlayerBattleGame: React.FC = () => {
 
   const [roundTarget, setRoundTarget] = useState<number>(3); // First to 3
 
+  const [selectedBossId, setSelectedBossId] = useState<string>('boss_titan');
+
   // Economy & Unlocks (from Scratch 292728003 chest system!)
   const [gold, setGold] = useState<number>(() => {
     const saved = localStorage.getItem('gret_battle_gold');
-    return saved ? parseInt(saved, 10) : 120;
+    return saved ? parseInt(saved, 10) : 500;
   });
   const [unlockedCharIds, setUnlockedCharIds] = useState<string[]>(() => {
-    const defaultUnlocked = CHARACTERS.filter((c) => c.unlockedByDefault).map((c) => c.id);
+    const defaultUnlocked = CHARACTERS.map((c) => c.id);
     const saved = localStorage.getItem('gret_battle_unlocked');
     if (!saved) return defaultUnlocked;
     try {
@@ -2221,6 +3016,36 @@ export const TwoPlayerBattleGame: React.FC = () => {
         { x: 510, y: H - 210, width: 160, height: 16, color: '#b45309' },
         { x: 270, y: H - 300, width: 260, height: 16, color: '#fde047' },
       ];
+    } else if (map === 'boss_titan_citadel' || map === 'boss_citadel') {
+      return [
+        { x: 20, y: H - 35, width: W - 40, height: 24, color: '#450a0a' },
+        { x: 80, y: H - 120, width: 190, height: 18, color: '#7f1d1d' },
+        { x: W - 270, y: H - 120, width: 190, height: 18, color: '#7f1d1d' },
+        { x: 300, y: H - 180, width: 200, height: 20, color: '#ef4444', isJumpPad: true },
+        { x: 180, y: H - 270, width: 150, height: 16, color: '#991b1b' },
+        { x: 470, y: H - 270, width: 150, height: 16, color: '#991b1b' },
+        { x: 290, y: H - 350, width: 220, height: 18, color: '#f87171' },
+      ];
+    } else if (map === 'boss_reaper_crypt') {
+      return [
+        { x: 30, y: H - 35, width: W - 60, height: 22, color: '#2e1065' },
+        { x: 60, y: H - 110, width: 160, height: 16, color: '#3b0764' },
+        { x: W - 220, y: H - 110, width: 160, height: 16, color: '#3b0764' },
+        { x: 310, y: H - 160, width: 180, height: 18, color: '#a855f7', isJumpPad: true },
+        { x: 140, y: H - 240, width: 160, height: 16, color: '#581c87' },
+        { x: 500, y: H - 240, width: 160, height: 16, color: '#581c87' },
+        { x: 260, y: H - 325, width: 280, height: 16, color: '#c084fc', isJumpPad: true },
+      ];
+    } else if (map === 'boss_dragon_fortress') {
+      return [
+        { x: 40, y: H - 35, width: W - 80, height: 24, color: '#1e293b' },
+        { x: 70, y: H - 115, width: 170, height: 18, color: '#ea580c', isJumpPad: true },
+        { x: W - 240, y: H - 115, width: 170, height: 18, color: '#ea580c', isJumpPad: true },
+        { x: 280, y: H - 190, width: 240, height: 18, color: '#334155' },
+        { x: 130, y: H - 275, width: 170, height: 16, color: '#f97316' },
+        { x: 500, y: H - 275, width: 170, height: 16, color: '#f97316' },
+        { x: 270, y: H - 355, width: 260, height: 18, color: '#facc15' },
+      ];
     }
     // Classic (Scratch style)
     return [
@@ -2246,12 +3071,39 @@ export const TwoPlayerBattleGame: React.FC = () => {
       { x: W - 270, y: H - 240, facing: 'left' as const },
     ];
 
-    const activeConfigs = [
-      { id: 1, char: p1Char, isAi: p1IsAi, name: 'Player 1' },
-      { id: 2, char: p2Char, isAi: gameMode === 'ai' ? true : p2IsAi, name: gameMode === 'ai' ? 'Gret AI' : 'Player 2' },
-      ...(playerCount >= 3 ? [{ id: 3, char: p3Char, isAi: p3IsAi, name: p3IsAi ? 'Nova AI' : 'Player 3' }] : []),
-      ...(playerCount >= 4 ? [{ id: 4, char: p4Char, isAi: p4IsAi, name: p4IsAi ? 'Titan AI' : 'Player 4' }] : []),
-    ];
+    const activeBoss = BOSSES.find((b) => b.id === selectedBossId) || BOSSES[0];
+
+    // Automatically assign boss-specific custom map when fighting a boss
+    if (gameMode === 'boss_solo' || gameMode === 'boss_coop') {
+      if (activeBoss.id === 'boss_titan') {
+        setSelectedMap('boss_titan_citadel');
+      } else if (activeBoss.id === 'boss_reaper') {
+        setSelectedMap('boss_reaper_crypt');
+      } else if (activeBoss.id === 'boss_dragon') {
+        setSelectedMap('boss_dragon_fortress');
+      }
+    }
+
+    let activeConfigs = [];
+    if (gameMode === 'boss_solo') {
+      activeConfigs = [
+        { id: 1, char: p1Char, isAi: false, name: 'Player 1' },
+        { id: 2, char: activeBoss, isAi: true, name: `[BOSS] ${activeBoss.name}` },
+      ];
+    } else if (gameMode === 'boss_coop') {
+      activeConfigs = [
+        { id: 1, char: p1Char, isAi: false, name: 'Player 1' },
+        { id: 2, char: p2Char, isAi: false, name: 'Player 2 (Co-op)' },
+        { id: 3, char: activeBoss, isAi: true, name: `[BOSS] ${activeBoss.name}` },
+      ];
+    } else {
+      activeConfigs = [
+        { id: 1, char: p1Char, isAi: p1IsAi, name: 'Player 1' },
+        { id: 2, char: p2Char, isAi: gameMode === 'ai' ? true : p2IsAi, name: gameMode === 'ai' ? 'Gret AI' : 'Player 2' },
+        ...(playerCount >= 3 ? [{ id: 3, char: p3Char, isAi: p3IsAi, name: p3IsAi ? 'Nova AI' : 'Player 3' }] : []),
+        ...(playerCount >= 4 ? [{ id: 4, char: p4Char, isAi: p4IsAi, name: p4IsAi ? 'Titan AI' : 'Player 4' }] : []),
+      ];
+    }
 
     const newPlayers: PlayerState[] = activeConfigs.map((cfg, idx) => {
       const spawn = spawnPositions[idx] || spawnPositions[0];
@@ -2263,8 +3115,8 @@ export const TwoPlayerBattleGame: React.FC = () => {
         y: spawn.y,
         vx: 0,
         vy: 0,
-        width: 28,
-        height: 42,
+        width: cfg.char.id.startsWith('boss_') ? 56 : 28,
+        height: cfg.char.id.startsWith('boss_') ? 80 : 42,
         facing: spawn.facing,
         isGrounded: false,
         hp: cfg.char.maxHp,
@@ -2283,6 +3135,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
         reflectPulseTimer: 0,
         reflectCooldownTimer: 0,
         freezeCooldownTimer: 0,
+        lastTeleportTime: 0,
         ccHitCount: 0,
       };
     });
@@ -2366,121 +3219,193 @@ export const TwoPlayerBattleGame: React.FC = () => {
     const speed = player.character.projectileSpeed;
     const char = player.character;
 
-    // 1. Teleport Ability (Blinks behind enemy and strikes)
+    // Boss Multi-Ability System (Lots of moves & abilities with different damage values, bigger scale, no extra health)
+    if (char.id.startsWith('boss_')) {
+      const moveRoll = Math.random();
+      let moveName = 'Boss Strike';
+      let dmg = 16;
+      let projType = char.projectileType;
+      let prSpeed = speed;
+
+      if (moveRoll < 0.33) {
+        moveName = 'Quick Bolt';
+        dmg = 14;
+        prSpeed = speed * 1.35;
+      } else if (moveRoll < 0.68) {
+        moveName = 'Heavy Shockwave';
+        dmg = 22;
+        screenShakeRef.current = 10;
+      } else {
+        moveName = 'Ultimate Nova';
+        dmg = 32;
+        prSpeed = speed * 1.5;
+        screenShakeRef.current = 18;
+      }
+
+      soundManager.playLaser();
+      projectilesRef.current.push({
+        id: Math.random(),
+        owner: playerNum,
+        x: player.x + (dir === 1 ? player.width + 4 : -24),
+        y: player.y + player.height / 2 - 12,
+        vx: dir * prSpeed,
+        vy: (Math.random() - 0.5) * 2,
+        radius: dmg > 25 ? 20 : 12,
+        damage: dmg,
+        type: projType,
+        color: char.secondaryColor,
+        life: 55,
+      });
+
+      damageNumbersRef.current.push({
+        id: Math.random(),
+        x: player.x + player.width / 2,
+        y: player.y - 20,
+        damage: `${moveName} (${dmg} DMG)!`,
+        life: 35,
+        color: char.secondaryColor,
+      });
+      return;
+    }
+
+    // 1. Teleport Ability (Blinks behind enemy and strikes - 4s cooldown)
     if (char.canTeleport || char.attackStyle === 'teleport' || char.projectileType === 'teleport_strike' || char.projectileType === 'chrono_rift') {
-      const livingOpponents = playersRef.current.filter((p) => p.id !== playerNum && p.hp > 0);
-      if (livingOpponents.length > 0) {
-        let opponent = livingOpponents[0];
-        let minD = Infinity;
-        livingOpponents.forEach((op) => {
-          const d = Math.hypot(op.x - player.x, op.y - player.y);
-          if (d < minD) {
-            minD = d;
-            opponent = op;
-          }
-        });
-
-        // Origin rift particles
-        for (let i = 0; i < 14; i++) {
-          particlesRef.current.push({
-            x: player.x + player.width / 2,
-            y: player.y + player.height / 2,
-            vx: (Math.random() - 0.5) * 7,
-            vy: (Math.random() - 0.5) * 7,
-            color: char.projectileType === 'chrono_rift' ? '#2dd4bf' : '#a855f7',
-            size: 4,
-            life: 18,
-            maxLife: 18,
+      if (now - player.lastTeleportTime >= 4000) {
+        player.lastTeleportTime = now;
+        const livingOpponents = playersRef.current.filter((p) => p.id !== playerNum && p.hp > 0);
+        if (livingOpponents.length > 0) {
+          let opponent = livingOpponents[0];
+          let minD = Infinity;
+          livingOpponents.forEach((op) => {
+            const d = Math.hypot(op.x - player.x, op.y - player.y);
+            if (d < minD) {
+              minD = d;
+              opponent = op;
+            }
           });
-        }
 
-        // Warp behind opponent
-        const behindDist = 36;
-        const targetX = opponent.facing === 'right' ? opponent.x - behindDist : opponent.x + opponent.width + 6;
-        player.x = Math.max(25, Math.min(800 - 55, targetX));
-        player.y = opponent.y;
-        player.facing = opponent.x > player.x ? 'right' : 'left';
-        player.vx = 0;
-        player.vy = -1.5;
-
-        // Destination rift particles
-        for (let i = 0; i < 16; i++) {
-          particlesRef.current.push({
-            x: player.x + player.width / 2,
-            y: player.y + player.height / 2,
-            vx: (Math.random() - 0.5) * 8,
-            vy: (Math.random() - 0.5) * 8,
-            color: char.secondaryColor,
-            size: 4.5,
-            life: 20,
-            maxLife: 20,
-          });
-        }
-
-        soundManager.playLaser();
-
-        // Deliver instant backstab strike (1/4 damage if opponent is rooted, frozen, or timestopped)
-        const isOpponentCC = opponent.freezeTimer > 0 || opponent.rootTimer > 0 || opponent.timeStopTimer > 0;
-        const effectiveDamage = isOpponentCC ? Math.max(1, Math.round(char.attackDamage / 4)) : char.attackDamage;
-        opponent.hp -= effectiveDamage;
-        opponent.isHit = true;
-        opponent.hitTimer = 12;
-        opponent.vx = (player.facing === 'right' ? 1 : -1) * 9.5;
-        opponent.vy = -4.5;
-        screenShakeRef.current = 11;
-        soundManager.playHit();
-
-        // Break out of CC after 4 hits
-        if (isOpponentCC) {
-          opponent.ccHitCount = (opponent.ccHitCount || 0) + 1;
-          if (opponent.ccHitCount >= 4) {
-            opponent.freezeTimer = 0;
-            opponent.rootTimer = 0;
-            opponent.timeStopTimer = 0;
-            opponent.ccHitCount = 0;
-            damageNumbersRef.current.push({
-              id: Math.random(),
-              x: opponent.x + opponent.width / 2,
-              y: opponent.y - 36,
-              damage: 'BROKEN FREE! 💥',
-              life: 45,
-              color: '#ef4444',
+          // Origin rift particles
+          for (let i = 0; i < 14; i++) {
+            particlesRef.current.push({
+              x: player.x + player.width / 2,
+              y: player.y + player.height / 2,
+              vx: (Math.random() - 0.5) * 7,
+              vy: (Math.random() - 0.5) * 7,
+              color: char.projectileType === 'chrono_rift' ? '#2dd4bf' : '#a855f7',
+              size: 4,
+              life: 18,
+              maxLife: 18,
             });
-            soundManager.playLaser();
-            for (let i = 0; i < 16; i++) {
-              particlesRef.current.push({
+          }
+
+          // Warp behind opponent
+          const behindDist = 36;
+          const targetX = opponent.facing === 'right' ? opponent.x - behindDist : opponent.x + opponent.width + 6;
+          player.x = Math.max(25, Math.min(800 - 55, targetX));
+          player.y = opponent.y;
+          player.facing = opponent.x > player.x ? 'right' : 'left';
+          player.vx = 0;
+          player.vy = -1.5;
+
+          // Destination rift particles
+          for (let i = 0; i < 16; i++) {
+            particlesRef.current.push({
+              x: player.x + player.width / 2,
+              y: player.y + player.height / 2,
+              vx: (Math.random() - 0.5) * 8,
+              vy: (Math.random() - 0.5) * 8,
+              color: char.secondaryColor,
+              size: 4.5,
+              life: 20,
+              maxLife: 20,
+            });
+          }
+
+          soundManager.playLaser();
+
+          // Deliver instant backstab strike (1/4 damage if opponent is rooted, frozen, or timestopped)
+          const isOpponentCC = opponent.freezeTimer > 0 || opponent.rootTimer > 0 || opponent.timeStopTimer > 0;
+          const effectiveDamage = isOpponentCC ? Math.max(1, Math.round(char.attackDamage / 4)) : char.attackDamage;
+          opponent.hp -= effectiveDamage;
+          opponent.isHit = true;
+          opponent.hitTimer = 12;
+          opponent.vx = (player.facing === 'right' ? 1 : -1) * 9.5;
+          opponent.vy = -4.5;
+          screenShakeRef.current = 11;
+          soundManager.playHit();
+
+          // Break out of CC after 4 hits
+          if (isOpponentCC) {
+            opponent.ccHitCount = (opponent.ccHitCount || 0) + 1;
+            if (opponent.ccHitCount >= 4) {
+              opponent.freezeTimer = 0;
+              opponent.rootTimer = 0;
+              opponent.timeStopTimer = 0;
+              opponent.ccHitCount = 0;
+              damageNumbersRef.current.push({
+                id: Math.random(),
                 x: opponent.x + opponent.width / 2,
-                y: opponent.y + opponent.height / 2,
-                vx: (Math.random() - 0.5) * 10,
-                vy: (Math.random() - 0.5) * 10,
-                color: '#f8fafc',
-                size: 4,
-                life: 24,
-                maxLife: 24,
+                y: opponent.y - 36,
+                damage: 'BROKEN FREE! 💥',
+                life: 45,
+                color: '#ef4444',
               });
+              soundManager.playLaser();
+              for (let i = 0; i < 16; i++) {
+                particlesRef.current.push({
+                  x: opponent.x + opponent.width / 2,
+                  y: opponent.y + opponent.height / 2,
+                  vx: (Math.random() - 0.5) * 10,
+                  vy: (Math.random() - 0.5) * 10,
+                  color: '#f8fafc',
+                  size: 4,
+                  life: 24,
+                  maxLife: 24,
+                });
+              }
             }
           }
-        }
 
-        damageNumbersRef.current.push({
-          id: Math.random(),
-          x: opponent.x + opponent.width / 2,
-          y: opponent.y - 14,
-          damage: isOpponentCC ? `${effectiveDamage} (¼ CC)` : effectiveDamage,
-          life: 30,
-          color: isOpponentCC ? '#f59e0b' : char.projectileType === 'chrono_rift' ? '#2dd4bf' : '#c084fc',
-        });
+          damageNumbersRef.current.push({
+            id: Math.random(),
+            x: opponent.x + opponent.width / 2,
+            y: opponent.y - 14,
+            damage: isOpponentCC ? `${effectiveDamage} (¼ CC)` : effectiveDamage,
+            life: 30,
+            color: isOpponentCC ? '#f59e0b' : char.projectileType === 'chrono_rift' ? '#2dd4bf' : '#c084fc',
+          });
 
-        if (opponent.hp <= 0) {
-          opponent.hp = 0;
-          soundManager.playExplosion();
-          const alive = playersRef.current.filter((p) => p.hp > 0);
-          if (alive.length === 1) {
-            handleRoundEnd(alive[0].id);
-          } else if (alive.length === 0) {
-            handleRoundEnd(playerNum);
+          if (opponent.hp <= 0) {
+            opponent.hp = 0;
+            soundManager.playExplosion();
+            const alive = playersRef.current.filter((p) => p.hp > 0);
+            if (alive.length === 1) {
+              handleRoundEnd(alive[0].id);
+            } else if (alive.length === 0) {
+              handleRoundEnd(playerNum);
+            }
           }
+          return;
         }
+      } else {
+        // Teleport is on 4s cooldown -> perform normal melee attack
+        player.vx = dir * 6.5;
+        soundManager.playAttack();
+        screenShakeRef.current = 5;
+        projectilesRef.current.push({
+          id: Math.random(),
+          owner: playerNum,
+          x: player.x + (dir === 1 ? player.width + 4 : -50),
+          y: player.y + player.height / 2 - 12,
+          vx: dir * 3.5,
+          vy: 0,
+          radius: 26,
+          damage: Math.round(char.attackDamage * 0.85),
+          type: 'slash',
+          color: char.secondaryColor || char.color,
+          life: 12,
+          isMeleeHitbox: true,
+        });
         return;
       }
     }
@@ -4135,6 +5060,40 @@ export const TwoPlayerBattleGame: React.FC = () => {
               <Users className="w-3.5 h-3.5" />
               <span>Free-For-All</span>
             </button>
+            <button
+              onClick={() => {
+                setGameMode('boss_solo');
+                if (selectedBossId === 'boss_titan') setSelectedMap('boss_titan_citadel');
+                else if (selectedBossId === 'boss_reaper') setSelectedMap('boss_reaper_crypt');
+                else if (selectedBossId === 'boss_dragon') setSelectedMap('boss_dragon_fortress');
+                if (gameState === 'playing') initRound(true);
+              }}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition cursor-pointer ${
+                gameMode === 'boss_solo'
+                  ? 'bg-red-600 text-white font-bold shadow-xs'
+                  : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+              }`}
+            >
+              <Skull className="w-3.5 h-3.5" />
+              <span>Boss Solo</span>
+            </button>
+            <button
+              onClick={() => {
+                setGameMode('boss_coop');
+                if (selectedBossId === 'boss_titan') setSelectedMap('boss_titan_citadel');
+                else if (selectedBossId === 'boss_reaper') setSelectedMap('boss_reaper_crypt');
+                else if (selectedBossId === 'boss_dragon') setSelectedMap('boss_dragon_fortress');
+                if (gameState === 'playing') initRound(true);
+              }}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition cursor-pointer ${
+                gameMode === 'boss_coop'
+                  ? 'bg-red-600 text-white font-bold shadow-xs'
+                  : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+              }`}
+            >
+              <Shield className="w-3.5 h-3.5" />
+              <span>Boss Co-op</span>
+            </button>
           </div>
         </div>
       </div>
@@ -5012,6 +5971,62 @@ export const TwoPlayerBattleGame: React.FC = () => {
             </div>
           </div>
 
+          {/* Boss Selection Card if Boss Mode */}
+          {(gameMode === 'boss_solo' || gameMode === 'boss_coop') && (
+            <div className="p-4 rounded-xl border border-red-500/40 bg-red-500/10 mb-3">
+              <label className="text-xs font-bold uppercase text-red-600 dark:text-red-400 tracking-wider block mb-2 flex items-center gap-1.5">
+                <Skull className="w-4 h-4" />
+                <span>Select Epic Raid Boss ({BOSSES.length} Available - Auto-Sets Custom Arena Map)</span>
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {BOSSES.map((boss) => {
+                  const isSelected = selectedBossId === boss.id;
+                  const bossMapName =
+                    boss.id === 'boss_titan'
+                      ? '🌋 Magma Citadel'
+                      : boss.id === 'boss_reaper'
+                      ? '🌌 Nether Crypt'
+                      : '⚡ Sky Fortress';
+                  return (
+                    <button
+                      key={boss.id}
+                      onClick={() => {
+                        setSelectedBossId(boss.id);
+                        if (boss.id === 'boss_titan') setSelectedMap('boss_titan_citadel');
+                        else if (boss.id === 'boss_reaper') setSelectedMap('boss_reaper_crypt');
+                        else if (boss.id === 'boss_dragon') setSelectedMap('boss_dragon_fortress');
+                      }}
+                      className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
+                        isSelected
+                          ? 'border-red-500 bg-red-500/20 shadow-sm ring-2 ring-red-500/30'
+                          : 'border-neutral-200 dark:border-neutral-700 bg-white/70 dark:bg-neutral-800/70 hover:border-neutral-400'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <div
+                          className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0"
+                          style={{ backgroundColor: boss.color }}
+                        >
+                          {boss.name[0]}
+                        </div>
+                        <div>
+                          <span className="text-xs font-bold block">{boss.name}</span>
+                          <span className="text-[10px] text-red-600 dark:text-red-400 block">{boss.title}</span>
+                        </div>
+                      </div>
+                      <div className="text-[10px] text-neutral-500 dark:text-neutral-400 mt-1">
+                        HP: <strong className="text-neutral-900 dark:text-white">{boss.maxHp}</strong> • ATK: <strong className="text-neutral-900 dark:text-white">{boss.attackDamage}</strong>
+                      </div>
+                      <div className="mt-1 text-[9px] font-semibold text-amber-500 dark:text-amber-400">
+                        Map: {bossMapName}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Match Settings Row (Map & Difficulty) */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {/* Arena Map */}
@@ -5035,6 +6050,9 @@ export const TwoPlayerBattleGame: React.FC = () => {
                 <option value="haunted_crypt">Haunted Crypt Graveyard</option>
                 <option value="neon_downtown">Neon Downtown Rain</option>
                 <option value="desert_ruins">Desert Ruins of Giza</option>
+                <option value="boss_titan_citadel">🌋 Titan Magma Citadel (Boss Map)</option>
+                <option value="boss_reaper_crypt">🌌 Reaper Nether Crypt (Boss Map)</option>
+                <option value="boss_dragon_fortress">⚡ Dragon Mech Sky Fortress (Boss Map)</option>
               </select>
             </div>
 
