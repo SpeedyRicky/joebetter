@@ -1117,19 +1117,19 @@ export const BOSSES: Character[] = [
     class: 'vanguard',
     color: '#b91c1c',
     secondaryColor: '#ef4444',
-    weapon: 'Seismic Hammer',
+    weapon: 'Seismic Hammer & Volcanic Quake',
     projectileType: 'melee_slam',
-    maxHp: 500,
+    maxHp: 1000,
     speed: 3.8,
     jumpForce: 13,
     attackCooldown: 550,
-    attackDamage: 24,
+    attackDamage: 32,
     projectileSpeed: 9,
     isMelee: true,
     canBlock: true,
     unlockedByDefault: true,
     cost: 0,
-    description: 'Boss 1: Colossal stone golem with 500 HP, massive size, heavy ground shockwaves, and impenetrable shield armor.',
+    description: 'Boss 1: Colossal stone golem with 1000 HP, earth-shattering seismic slams, molten volcanic boulder clusters, and 5-second core overheat dead time.',
   },
   {
     id: 'boss_reaper',
@@ -1139,19 +1139,19 @@ export const BOSSES: Character[] = [
     class: 'assassin',
     color: '#581c87',
     secondaryColor: '#9333ea',
-    weapon: 'Nether Scythe',
+    weapon: 'Nether Void Scythe & Soul Phantoms',
     projectileType: 'scythe',
-    maxHp: 450,
+    maxHp: 1000,
     speed: 5.5,
     jumpForce: 16.5,
     attackCooldown: 480,
-    attackDamage: 20,
+    attackDamage: 28,
     projectileSpeed: 15,
     canTeleport: true,
     timeStopsEnemy: true,
     unlockedByDefault: true,
     cost: 0,
-    description: 'Boss 2: Void phantom shadow with 450 HP, gigantic stature, instant teleport strikes, and time-stasis chronospheres.',
+    description: 'Boss 2: Void phantom shadow with 1000 HP, giant crescent nether scythe waves, tracking void phantoms, stasis rifts, and 5-second dimensional collapse dead time.',
   },
   {
     id: 'boss_dragon',
@@ -1161,18 +1161,18 @@ export const BOSSES: Character[] = [
     class: 'special',
     color: '#ea580c',
     secondaryColor: '#f97316',
-    weapon: 'Plasma Dragon Breath',
+    weapon: 'Hyper Plasma Breath & Homing Rockets',
     projectileType: 'dragon_breath',
-    maxHp: 550,
+    maxHp: 1000,
     speed: 5.0,
     jumpForce: 16.5,
     attackCooldown: 520,
-    attackDamage: 22,
+    attackDamage: 30,
     projectileSpeed: 16,
     canFly: true,
     unlockedByDefault: true,
     cost: 0,
-    description: 'Boss 3: Apex mechanical dragon with 550 HP, massive scale, continuous flight hovering, and devastating plasma magma breath.',
+    description: 'Boss 3: Apex mechanical dragon with 1000 HP, colossal plasma breath beam, homing micro-rocket cluster salvos, and 5-second reactor overheat dead time.',
   },
 ];
 
@@ -1203,6 +1203,7 @@ interface Projectile {
   rootsEnemy?: boolean;
   timeStopsEnemy?: boolean;
   isReflected?: boolean;
+  isHoming?: boolean;
 }
 
 interface Particle {
@@ -1224,6 +1225,160 @@ interface DamageNumber {
   life: number;
   color: string;
 }
+
+export type PowerUpType = 'speed' | 'cooldown' | 'damage' | 'jump' | 'heal' | 'shield' | 'ultimate_hit';
+
+export interface DroppedPowerUp {
+  id: number;
+  type: PowerUpType;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  width: number;
+  height: number;
+  life: number;
+  isGrounded: boolean;
+  label: string;
+  icon: string;
+  color: string;
+  glowColor: string;
+  description: string;
+}
+
+export const POWERUP_CONFIGS: Record<PowerUpType, { label: string; icon: string; color: string; glowColor: string; description: string }> = {
+  speed: {
+    label: 'SPEED BOOST',
+    icon: '⚡',
+    color: '#06b6d4',
+    glowColor: 'rgba(6, 182, 212, 0.6)',
+    description: '+70% Movement Speed (10s)',
+  },
+  cooldown: {
+    label: 'FAST COOLDOWN',
+    icon: '⏱️',
+    color: '#3b82f6',
+    glowColor: 'rgba(59, 130, 246, 0.6)',
+    description: 'Attack Cooldown / 2 (10s)',
+  },
+  damage: {
+    label: '2X DAMAGE',
+    icon: '🔥',
+    color: '#ef4444',
+    glowColor: 'rgba(239, 68, 68, 0.6)',
+    description: 'Double 2* Damage on all attacks (10s)',
+  },
+  jump: {
+    label: 'SUPER JUMP',
+    icon: '🦘',
+    color: '#10b981',
+    glowColor: 'rgba(16, 185, 129, 0.6)',
+    description: '+60% Jump Height (10s)',
+  },
+  heal: {
+    label: 'HEALTH RESTORE',
+    icon: '💚',
+    color: '#22c55e',
+    glowColor: 'rgba(34, 197, 94, 0.6)',
+    description: 'Instant +120 HP Heal',
+  },
+  shield: {
+    label: 'INVINCIBLE SHIELD',
+    icon: '🛡️',
+    color: '#eab308',
+    glowColor: 'rgba(234, 179, 8, 0.7)',
+    description: 'Complete Invincibility (10s)',
+  },
+  ultimate_hit: {
+    label: 'ULTIMATE HIT',
+    icon: '🎯',
+    color: '#a855f7',
+    glowColor: 'rgba(168, 85, 247, 0.7)',
+    description: '100% Sure-Hit Projectile Homing (10s)',
+  },
+};
+
+// Render Power-Up Box on canvas
+export const renderDroppedPowerUp = (
+  ctx: CanvasRenderingContext2D,
+  pup: DroppedPowerUp,
+  now: number
+) => {
+  ctx.save();
+
+  // 1. Draw Parachute if falling
+  if (!pup.isGrounded) {
+    const chuteW = 34;
+    const chuteY = pup.y - 18;
+
+    // Canopy
+    ctx.beginPath();
+    ctx.arc(pup.x + pup.width / 2, chuteY, chuteW / 2, Math.PI, 0);
+    ctx.fillStyle = pup.color;
+    ctx.globalAlpha = 0.88;
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Suspension cords
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pup.x + pup.width / 2 - chuteW / 2, chuteY);
+    ctx.lineTo(pup.x + 4, pup.y);
+    ctx.moveTo(pup.x + pup.width / 2 + chuteW / 2, chuteY);
+    ctx.lineTo(pup.x + pup.width - 4, pup.y);
+    ctx.moveTo(pup.x + pup.width / 2, chuteY - 8);
+    ctx.lineTo(pup.x + pup.width / 2, pup.y);
+    ctx.stroke();
+  }
+
+  // 2. Glowing aura
+  const pulse = Math.sin(now * 0.008 + pup.id) * 4;
+  ctx.shadowColor = pup.color;
+  ctx.shadowBlur = 12 + pulse;
+
+  // Ground beacon beam if resting
+  if (pup.isGrounded) {
+    const beamGrad = ctx.createLinearGradient(0, pup.y, 0, pup.y - 36);
+    beamGrad.addColorStop(0, pup.glowColor);
+    beamGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = beamGrad;
+    ctx.fillRect(pup.x + pup.width / 2 - 10, pup.y - 36, 20, 36);
+  }
+
+  // 3. Power-Up Capsule Box
+  const boxW = pup.width;
+  const boxH = pup.height;
+  const boxX = pup.x;
+  const boxY = pup.y;
+
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+  ctx.beginPath();
+  ctx.roundRect(boxX, boxY, boxW, boxH, 8);
+  ctx.fill();
+
+  ctx.strokeStyle = pup.color;
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // 4. Central Icon
+  ctx.shadowBlur = 0;
+  ctx.font = 'bold 15px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(pup.icon, boxX + boxW / 2, boxY + boxH / 2);
+
+  // 5. Floating Label Overhead
+  ctx.font = 'bold 9px sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = '#000000';
+  ctx.shadowBlur = 4;
+  ctx.fillText(pup.label, boxX + boxW / 2, boxY - 7);
+
+  ctx.restore();
+};
 
 interface PlayerState {
   id: number;
@@ -1255,6 +1410,14 @@ interface PlayerState {
   freezeCooldownTimer: number;
   lastTeleportTime: number;
   ccHitCount: number;
+  bossStunTimer?: number;
+  bossAttackCombo?: number;
+  speedBuffTimer?: number;
+  cooldownBuffTimer?: number;
+  damageBuffTimer?: number;
+  jumpBuffTimer?: number;
+  shieldBuffTimer?: number;
+  ultimateHitBuffTimer?: number;
 }
 
 // Background rendering per arena map
@@ -2161,12 +2324,73 @@ const renderCharacterSprite = (
       ctx.strokeStyle = '#facc15';
       ctx.lineWidth = 4;
       ctx.beginPath();
-      ctx.arc(p.x + p.width / 2 + dir * 20, p.y + p.height / 2, 42, -Math.PI * 0.45, Math.PI * 0.45);
+      ctx.arc(p.x + p.width / 2 + dir * 20, p.y + p.height / 2, 48, -Math.PI * 0.45, Math.PI * 0.45);
       ctx.stroke();
       ctx.fillStyle = 'rgba(250, 204, 21, 0.3)';
       ctx.fill();
       ctx.restore();
     }
+
+    // Overhead Dead Time / Stun Visual FX (Dizzy spinning stars & lightning arcs)
+    if (p.bossStunTimer && p.bossStunTimer > 0) {
+      ctx.save();
+      const stunSec = (p.bossStunTimer / 60).toFixed(1);
+      const starAngle = (now * 0.008) % (Math.PI * 2);
+
+      // Rotating dizzy stars around boss head
+      for (let i = 0; i < 4; i++) {
+        const a = starAngle + (i * Math.PI) / 2;
+        const sx = p.x + p.width / 2 + Math.cos(a) * (p.width * 0.55);
+        const sy = p.y - 12 + Math.sin(a) * 8;
+        ctx.fillStyle = '#facc15';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('💫', sx, sy);
+      }
+
+      // Flashing vulnerability aura ring
+      ctx.strokeStyle = `rgba(250, 204, 21, ${0.4 + Math.sin(now * 0.02) * 0.4})`;
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.roundRect(p.x - 6, p.y - 6, p.width + 12, p.height + 12, 10);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    // Overhead Boss Health Bar
+    const hpBarW = 76;
+    const hpBarH = 7;
+    const hpPercent = Math.max(0, p.hp / p.maxHp);
+
+    ctx.save();
+    // Health bar container
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+    ctx.fillRect(p.x + p.width / 2 - hpBarW / 2, p.y - 18, hpBarW, hpBarH);
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(p.x + p.width / 2 - hpBarW / 2, p.y - 18, hpBarW, hpBarH);
+
+    // Health bar fill
+    ctx.fillStyle = hpPercent > 0.5 ? '#ef4444' : hpPercent > 0.25 ? '#f97316' : '#b91c1c';
+    ctx.fillRect(p.x + p.width / 2 - hpBarW / 2, p.y - 18, hpBarW * hpPercent, hpBarH);
+
+    // Overhead Label & Dead Time Status
+    let bossLabel = `👑 ${p.character.name}`;
+    if (p.bossStunTimer && p.bossStunTimer > 0) {
+      bossLabel = `⚡ DEAD TIME: ${(p.bossStunTimer / 60).toFixed(1)}s (VULNERABLE!)`;
+      ctx.fillStyle = '#facc15';
+    } else {
+      ctx.fillStyle = '#fca5a5';
+    }
+    ctx.font = 'bold 9px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = '#000000';
+    ctx.shadowBlur = 4;
+    ctx.fillText(bossLabel, p.x + p.width / 2, p.y - 22);
+    ctx.restore();
+
     return;
   }
 
@@ -2795,6 +3019,85 @@ const renderCharacterSprite = (
     ctx.restore();
   }
 
+  // 7. Active Power-Up Visual Auras
+  // A. Invincible Shield Forcefield
+  if (p.shieldBuffTimer && p.shieldBuffTimer > 0) {
+    ctx.save();
+    const pulse = Math.sin(now * 0.01) * 3;
+    const shieldRadius = Math.max(p.width, p.height) * 0.65 + pulse;
+    ctx.strokeStyle = '#facc15';
+    ctx.lineWidth = 3;
+    ctx.shadowColor = '#facc15';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(p.x + p.width / 2, p.y + p.height / 2, shieldRadius, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(250, 204, 21, 0.22)';
+    ctx.fill();
+    ctx.stroke();
+
+    // Orbiting shield runes
+    for (let i = 0; i < 4; i++) {
+      const angle = now * 0.006 + (i * Math.PI) / 2;
+      const rx = p.x + p.width / 2 + Math.cos(angle) * shieldRadius;
+      const ry = p.y + p.height / 2 + Math.sin(angle) * shieldRadius;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(rx, ry, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // B. 2X Damage Flame Aura
+  if (p.damageBuffTimer && p.damageBuffTimer > 0) {
+    ctx.save();
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = '#ef4444';
+    ctx.shadowBlur = 8;
+    for (let i = 0; i < 3; i++) {
+      const fx = p.x + (i / 2) * p.width + (Math.random() - 0.5) * 6;
+      const fy = p.y + p.height * 0.4 - Math.random() * 12;
+      ctx.fillStyle = i % 2 === 0 ? '#f97316' : '#facc15';
+      ctx.beginPath();
+      ctx.arc(fx, fy, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // C. Speed Boost Wind Trails
+  if (p.speedBuffTimer && p.speedBuffTimer > 0) {
+    ctx.save();
+    ctx.strokeStyle = '#06b6d4';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 3; i++) {
+      const offX = (p.facing === 'right' ? -1 : 1) * (12 + i * 6);
+      ctx.beginPath();
+      ctx.moveTo(p.x + p.width / 2 + offX, p.y + 12 + i * 8);
+      ctx.lineTo(p.x + p.width / 2 + offX - (p.facing === 'right' ? 8 : -8), p.y + 12 + i * 8);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // D. Ultimate Hit Targeting Reticle
+  if (p.ultimateHitBuffTimer && p.ultimateHitBuffTimer > 0) {
+    ctx.save();
+    ctx.strokeStyle = '#c084fc';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(p.x + p.width / 2, p.y - 8, 8, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(p.x + p.width / 2 - 11, p.y - 8);
+    ctx.lineTo(p.x + p.width / 2 + 11, p.y - 8);
+    ctx.moveTo(p.x + p.width / 2, p.y - 19);
+    ctx.lineTo(p.x + p.width / 2, p.y + 3);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   // 8. Overhead Player Badges & Health Bar
   const hpBarW = 46;
   const hpBarH = 5;
@@ -2823,6 +3126,20 @@ const renderCharacterSprite = (
   } else if ((p.character.freezesEnemy || p.character.timeStopsEnemy) && p.freezeCooldownTimer > 0) {
     badgeLabel += ` [FREEZE CD: ${(p.freezeCooldownTimer / 60).toFixed(1)}s]`;
   }
+
+  // Active Power-Up Indicators Overhead
+  const activeBuffs: string[] = [];
+  if (p.shieldBuffTimer && p.shieldBuffTimer > 0) activeBuffs.push(`🛡️ ${(p.shieldBuffTimer / 60).toFixed(0)}s`);
+  if (p.damageBuffTimer && p.damageBuffTimer > 0) activeBuffs.push(`🔥2x ${(p.damageBuffTimer / 60).toFixed(0)}s`);
+  if (p.speedBuffTimer && p.speedBuffTimer > 0) activeBuffs.push(`⚡ ${(p.speedBuffTimer / 60).toFixed(0)}s`);
+  if (p.cooldownBuffTimer && p.cooldownBuffTimer > 0) activeBuffs.push(`⏱️/2 ${(p.cooldownBuffTimer / 60).toFixed(0)}s`);
+  if (p.jumpBuffTimer && p.jumpBuffTimer > 0) activeBuffs.push(`🦘 ${(p.jumpBuffTimer / 60).toFixed(0)}s`);
+  if (p.ultimateHitBuffTimer && p.ultimateHitBuffTimer > 0) activeBuffs.push(`🎯 ${(p.ultimateHitBuffTimer / 60).toFixed(0)}s`);
+
+  if (activeBuffs.length > 0) {
+    badgeLabel += ` [${activeBuffs.join(' ')}]`;
+  }
+
   ctx.fillStyle = theme.color;
   ctx.font = 'bold 10px sans-serif';
   ctx.textAlign = 'center';
@@ -2897,6 +3214,20 @@ export const TwoPlayerBattleGame: React.FC = () => {
   const [gretCommentary, setGretCommentary] = useState<string>("Ready for the Battle Arena! Select players, pick your characters, and jump in!");
   const [chestOpeningResult, setChestOpeningResult] = useState<string | null>(null);
 
+  // Live Boss HUD State for top health bar synchronization
+  const [bossLiveState, setBossLiveState] = useState<{
+    id: string;
+    name: string;
+    title: string;
+    hp: number;
+    maxHp: number;
+    stunTimer: number;
+    comboCount: number;
+    color: string;
+    secondaryColor: string;
+  } | null>(null);
+  const lastBossSyncRef = useRef<number>(0);
+
   // Canvas & Game Loop
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -2909,6 +3240,8 @@ export const TwoPlayerBattleGame: React.FC = () => {
   const projectilesRef = useRef<Projectile[]>([]);
   const particlesRef = useRef<Particle[]>([]);
   const damageNumbersRef = useRef<DamageNumber[]>([]);
+  const powerUpsRef = useRef<DroppedPowerUp[]>([]);
+  const powerUpDropTimerRef = useRef<number>(0);
   const screenShakeRef = useRef<number>(0);
 
   // Save Gold and Unlocks
@@ -2920,155 +3253,104 @@ export const TwoPlayerBattleGame: React.FC = () => {
     localStorage.setItem('gret_battle_unlocked', JSON.stringify(unlockedCharIds));
   }, [unlockedCharIds]);
 
-  // Generate Map Platforms
+  // Generate Map Platforms (Clean, spacious layout with fewer cluttering air plates)
   const getPlatforms = useCallback((map: MapType): Platform[] => {
-    const W = 800;
-    const H = 460;
+    const W = 900;
+    const H = 500;
     if (map === 'sky_islands') {
       return [
-        { x: 50, y: H - 40, width: 220, height: 20, color: '#059669' },
-        { x: W - 270, y: H - 40, width: 220, height: 20, color: '#059669' },
-        { x: 310, y: H - 120, width: 180, height: 18, color: '#10b981', isJumpPad: true },
-        { x: 140, y: H - 210, width: 160, height: 16, color: '#34d399' },
-        { x: 500, y: H - 210, width: 160, height: 16, color: '#34d399' },
-        { x: 300, y: H - 310, width: 200, height: 16, color: '#6ee7b7' },
+        { x: 50, y: H - 45, width: 280, height: 22, color: '#059669' },
+        { x: W - 330, y: H - 45, width: 280, height: 22, color: '#059669' },
+        { x: 350, y: H - 150, width: 200, height: 20, color: '#10b981', isJumpPad: true },
       ];
     } else if (map === 'cyber_rooftop') {
       return [
-        { x: 40, y: H - 30, width: W - 80, height: 20, color: '#0891b2' },
-        { x: 100, y: H - 110, width: 160, height: 16, color: '#06b6d4' },
-        { x: W - 260, y: H - 110, width: 160, height: 16, color: '#06b6d4' },
-        { x: 310, y: H - 170, width: 180, height: 18, color: '#38bdf8', isJumpPad: true },
-        { x: 180, y: H - 250, width: 140, height: 16, color: '#22d3ee' },
-        { x: 480, y: H - 250, width: 140, height: 16, color: '#22d3ee' },
-        { x: 330, y: H - 330, width: 140, height: 16, color: '#67e8f9' },
+        { x: 40, y: H - 35, width: W - 80, height: 22, color: '#0891b2' },
+        { x: 130, y: H - 155, width: 190, height: 18, color: '#06b6d4' },
+        { x: W - 320, y: H - 155, width: 190, height: 18, color: '#06b6d4' },
       ];
     } else if (map === 'magma_cavern') {
       return [
-        { x: 40, y: H - 35, width: 220, height: 20, color: '#451a03' },
-        { x: W - 260, y: H - 35, width: 220, height: 20, color: '#451a03' },
-        { x: 290, y: H - 110, width: 220, height: 18, color: '#78350f', isJumpPad: true },
-        { x: 130, y: H - 200, width: 160, height: 16, color: '#9a3412' },
-        { x: 510, y: H - 200, width: 160, height: 16, color: '#9a3412' },
-        { x: 280, y: H - 290, width: 240, height: 16, color: '#ea580c' },
+        { x: 40, y: H - 40, width: 290, height: 22, color: '#451a03' },
+        { x: W - 330, y: H - 40, width: 290, height: 22, color: '#451a03' },
+        { x: 340, y: H - 150, width: 220, height: 20, color: '#78350f', isJumpPad: true },
       ];
     } else if (map === 'ancient_colosseum') {
       return [
-        { x: 50, y: H - 30, width: W - 100, height: 22, color: '#b45309' },
-        { x: 80, y: H - 125, width: 170, height: 18, color: '#fef3c7' },
-        { x: W - 250, y: H - 125, width: 170, height: 18, color: '#fef3c7' },
-        { x: 310, y: H - 180, width: 180, height: 18, color: '#f59e0b', isJumpPad: true },
-        { x: 230, y: H - 280, width: 340, height: 18, color: '#fef08a' },
+        { x: 40, y: H - 35, width: W - 80, height: 24, color: '#b45309' },
+        { x: 320, y: H - 160, width: 260, height: 20, color: '#fef08a' },
       ];
     } else if (map === 'quantum_void') {
       return [
-        { x: 60, y: H - 45, width: 190, height: 18, color: '#581c87' },
-        { x: W - 250, y: H - 45, width: 190, height: 18, color: '#581c87' },
-        { x: 320, y: H - 120, width: 160, height: 18, color: '#a855f7', isJumpPad: true },
-        { x: 130, y: H - 215, width: 150, height: 16, color: '#7c3aed' },
-        { x: 520, y: H - 215, width: 150, height: 16, color: '#7c3aed' },
-        { x: 280, y: H - 315, width: 240, height: 16, color: '#c084fc' },
+        { x: 60, y: H - 50, width: 260, height: 20, color: '#581c87' },
+        { x: W - 320, y: H - 50, width: 260, height: 20, color: '#581c87' },
+        { x: 350, y: H - 155, width: 200, height: 20, color: '#a855f7', isJumpPad: true },
       ];
     } else if (map === 'toxic_factory') {
       return [
-        { x: 40, y: H - 35, width: 230, height: 20, color: '#1e293b' },
-        { x: W - 270, y: H - 35, width: 230, height: 20, color: '#1e293b' },
-        { x: 310, y: H - 115, width: 180, height: 18, color: '#65a30d', isJumpPad: true },
-        { x: 120, y: H - 205, width: 160, height: 16, color: '#475569' },
-        { x: 520, y: H - 205, width: 160, height: 16, color: '#475569' },
-        { x: 290, y: H - 305, width: 220, height: 16, color: '#84cc16' },
+        { x: 40, y: H - 40, width: W - 80, height: 22, color: '#1e293b' },
+        { x: 140, y: H - 160, width: 190, height: 18, color: '#475569' },
+        { x: W - 330, y: H - 160, width: 190, height: 18, color: '#475569' },
       ];
     } else if (map === 'frozen_summit') {
       return [
-        { x: 50, y: H - 40, width: 230, height: 20, color: '#0369a1' },
-        { x: W - 280, y: H - 40, width: 230, height: 20, color: '#0369a1' },
-        { x: 320, y: H - 125, width: 160, height: 18, color: '#38bdf8', isJumpPad: true },
-        { x: 140, y: H - 220, width: 150, height: 16, color: '#0284c7' },
-        { x: 510, y: H - 220, width: 150, height: 16, color: '#0284c7' },
-        { x: 280, y: H - 315, width: 240, height: 16, color: '#bae6fd' },
+        { x: 50, y: H - 45, width: 280, height: 22, color: '#0369a1' },
+        { x: W - 330, y: H - 45, width: 280, height: 22, color: '#0369a1' },
+        { x: 350, y: H - 150, width: 200, height: 20, color: '#38bdf8', isJumpPad: true },
       ];
     } else if (map === 'haunted_crypt') {
       return [
-        { x: 40, y: H - 35, width: W - 80, height: 22, color: '#1e1b4b' },
-        { x: 100, y: H - 120, width: 170, height: 18, color: '#312e81' },
-        { x: W - 270, y: H - 120, width: 170, height: 18, color: '#312e81' },
-        { x: 310, y: H - 185, width: 180, height: 18, color: '#a855f7', isJumpPad: true },
-        { x: 200, y: H - 275, width: 140, height: 16, color: '#4c1d95' },
-        { x: 460, y: H - 275, width: 140, height: 16, color: '#4c1d95' },
-        { x: 320, y: H - 340, width: 160, height: 16, color: '#c084fc' },
+        { x: 40, y: H - 40, width: W - 80, height: 24, color: '#1e1b4b' },
+        { x: 330, y: H - 160, width: 240, height: 20, color: '#a855f7', isJumpPad: true },
       ];
     } else if (map === 'neon_downtown') {
       return [
-        { x: 30, y: H - 30, width: W - 60, height: 22, color: '#0f172a' },
-        { x: 90, y: H - 110, width: 170, height: 16, color: '#0e7490' },
-        { x: W - 260, y: H - 110, width: 170, height: 16, color: '#0e7490' },
-        { x: 300, y: H - 170, width: 200, height: 18, color: '#ec4899', isJumpPad: true },
-        { x: 160, y: H - 250, width: 150, height: 16, color: '#06b6d4' },
-        { x: 490, y: H - 250, width: 150, height: 16, color: '#06b6d4' },
-        { x: 310, y: H - 330, width: 180, height: 16, color: '#f472b6' },
+        { x: 30, y: H - 35, width: W - 60, height: 24, color: '#0f172a' },
+        { x: 120, y: H - 160, width: 190, height: 18, color: '#0e7490' },
+        { x: W - 310, y: H - 160, width: 190, height: 18, color: '#0e7490' },
       ];
     } else if (map === 'desert_ruins') {
       return [
-        { x: 40, y: H - 35, width: 220, height: 22, color: '#78350f' },
-        { x: W - 260, y: H - 35, width: 220, height: 22, color: '#78350f' },
-        { x: 310, y: H - 115, width: 180, height: 18, color: '#f59e0b', isJumpPad: true },
-        { x: 130, y: H - 210, width: 160, height: 16, color: '#b45309' },
-        { x: 510, y: H - 210, width: 160, height: 16, color: '#b45309' },
-        { x: 270, y: H - 300, width: 260, height: 16, color: '#fde047' },
+        { x: 40, y: H - 40, width: 280, height: 24, color: '#78350f' },
+        { x: W - 320, y: H - 40, width: 280, height: 24, color: '#78350f' },
+        { x: 340, y: H - 150, width: 220, height: 20, color: '#f59e0b', isJumpPad: true },
       ];
     } else if (map === 'boss_titan_citadel' || map === 'boss_citadel') {
       return [
-        { x: 20, y: H - 35, width: W - 40, height: 24, color: '#450a0a' },
-        { x: 80, y: H - 120, width: 190, height: 18, color: '#7f1d1d' },
-        { x: W - 270, y: H - 120, width: 190, height: 18, color: '#7f1d1d' },
-        { x: 300, y: H - 180, width: 200, height: 20, color: '#ef4444', isJumpPad: true },
-        { x: 180, y: H - 270, width: 150, height: 16, color: '#991b1b' },
-        { x: 470, y: H - 270, width: 150, height: 16, color: '#991b1b' },
-        { x: 290, y: H - 350, width: 220, height: 18, color: '#f87171' },
+        { x: 20, y: H - 40, width: W - 40, height: 28, color: '#450a0a' },
+        { x: 120, y: H - 160, width: 190, height: 20, color: '#7f1d1d' },
+        { x: W - 310, y: H - 160, width: 190, height: 20, color: '#7f1d1d' },
       ];
     } else if (map === 'boss_reaper_crypt') {
       return [
-        { x: 30, y: H - 35, width: W - 60, height: 22, color: '#2e1065' },
-        { x: 60, y: H - 110, width: 160, height: 16, color: '#3b0764' },
-        { x: W - 220, y: H - 110, width: 160, height: 16, color: '#3b0764' },
-        { x: 310, y: H - 160, width: 180, height: 18, color: '#a855f7', isJumpPad: true },
-        { x: 140, y: H - 240, width: 160, height: 16, color: '#581c87' },
-        { x: 500, y: H - 240, width: 160, height: 16, color: '#581c87' },
-        { x: 260, y: H - 325, width: 280, height: 16, color: '#c084fc', isJumpPad: true },
+        { x: 30, y: H - 40, width: W - 60, height: 26, color: '#2e1065' },
+        { x: 330, y: H - 160, width: 240, height: 20, color: '#a855f7', isJumpPad: true },
       ];
     } else if (map === 'boss_dragon_fortress') {
       return [
-        { x: 40, y: H - 35, width: W - 80, height: 24, color: '#1e293b' },
-        { x: 70, y: H - 115, width: 170, height: 18, color: '#ea580c', isJumpPad: true },
-        { x: W - 240, y: H - 115, width: 170, height: 18, color: '#ea580c', isJumpPad: true },
-        { x: 280, y: H - 190, width: 240, height: 18, color: '#334155' },
-        { x: 130, y: H - 275, width: 170, height: 16, color: '#f97316' },
-        { x: 500, y: H - 275, width: 170, height: 16, color: '#f97316' },
-        { x: 270, y: H - 355, width: 260, height: 18, color: '#facc15' },
+        { x: 30, y: H - 40, width: W - 60, height: 28, color: '#1e293b' },
+        { x: 120, y: H - 160, width: 190, height: 20, color: '#ea580c', isJumpPad: true },
+        { x: W - 310, y: H - 160, width: 190, height: 20, color: '#ea580c', isJumpPad: true },
       ];
     }
     // Classic (Scratch style)
     return [
-      { x: 30, y: H - 30, width: W - 60, height: 22, color: '#475569' },
-      { x: 120, y: H - 110, width: 170, height: 16, color: '#64748b' },
-      { x: W - 290, y: H - 110, width: 170, height: 16, color: '#64748b' },
-      { x: 320, y: H - 165, width: 160, height: 18, color: '#eab308', isJumpPad: true },
-      { x: 190, y: H - 240, width: 150, height: 16, color: '#94a3b8' },
-      { x: 460, y: H - 240, width: 150, height: 16, color: '#94a3b8' },
-      { x: 310, y: H - 315, width: 180, height: 16, color: '#cbd5e1' },
+      { x: 30, y: H - 35, width: W - 60, height: 24, color: '#475569' },
+      { x: 130, y: H - 155, width: 190, height: 18, color: '#64748b' },
+      { x: W - 320, y: H - 155, width: 190, height: 18, color: '#64748b' },
     ];
   }, []);
 
   // Spawn Match/Round
   const initRound = useCallback((resetScores: boolean = false) => {
-    const W = 800;
-    const H = 460;
+    const W = 900;
+    const H = 500;
 
     const spawnPositions = [
-      { x: 110, y: H - 120, facing: 'right' as const },
-      { x: W - 150, y: H - 120, facing: 'left' as const },
-      { x: 230, y: H - 240, facing: 'right' as const },
-      { x: W - 270, y: H - 240, facing: 'left' as const },
+      { x: 120, y: H - 130, facing: 'right' as const },
+      { x: W - 180, y: H - 130, facing: 'left' as const },
+      { x: 250, y: H - 260, facing: 'right' as const },
+      { x: W - 300, y: H - 260, facing: 'left' as const },
     ];
 
     const activeBoss = BOSSES.find((b) => b.id === selectedBossId) || BOSSES[0];
@@ -3115,8 +3397,8 @@ export const TwoPlayerBattleGame: React.FC = () => {
         y: spawn.y,
         vx: 0,
         vy: 0,
-        width: cfg.char.id.startsWith('boss_') ? 56 : 28,
-        height: cfg.char.id.startsWith('boss_') ? 80 : 42,
+        width: cfg.char.id.startsWith('boss_') ? 64 : 28,
+        height: cfg.char.id.startsWith('boss_') ? 88 : 42,
         facing: spawn.facing,
         isGrounded: false,
         hp: cfg.char.maxHp,
@@ -3137,6 +3419,14 @@ export const TwoPlayerBattleGame: React.FC = () => {
         freezeCooldownTimer: 0,
         lastTeleportTime: 0,
         ccHitCount: 0,
+        bossStunTimer: 0,
+        bossAttackCombo: 0,
+        speedBuffTimer: 0,
+        cooldownBuffTimer: 0,
+        damageBuffTimer: 0,
+        jumpBuffTimer: 0,
+        shieldBuffTimer: 0,
+        ultimateHitBuffTimer: 0,
       };
     });
 
@@ -3144,9 +3434,29 @@ export const TwoPlayerBattleGame: React.FC = () => {
     p1Ref.current = newPlayers[0] || null;
     p2Ref.current = newPlayers[1] || null;
 
+    // Reset initial Boss HUD state if in boss battle
+    const bossPl = newPlayers.find((p) => p.character.id.startsWith('boss_'));
+    if (bossPl) {
+      setBossLiveState({
+        id: bossPl.character.id,
+        name: bossPl.character.name,
+        title: bossPl.character.title,
+        hp: bossPl.hp,
+        maxHp: bossPl.maxHp,
+        stunTimer: 0,
+        comboCount: 0,
+        color: bossPl.character.color,
+        secondaryColor: bossPl.character.secondaryColor,
+      });
+    } else {
+      setBossLiveState(null);
+    }
+
     projectilesRef.current = [];
     particlesRef.current = [];
     damageNumbersRef.current = [];
+    powerUpsRef.current = [];
+    powerUpDropTimerRef.current = 0;
     screenShakeRef.current = 0;
 
     if (resetScores) {
@@ -3208,9 +3518,14 @@ export const TwoPlayerBattleGame: React.FC = () => {
     const player = playersRef.current.find((p) => p.id === playerNum) || (playerNum === 1 ? p1Ref.current : p2Ref.current);
     if (!player) return;
     if (player.freezeTimer > 0 || player.timeStopTimer > 0) return; // Cannot attack while frozen solid in ice or stasis!
+    if (player.bossStunTimer && player.bossStunTimer > 0) return; // Boss is in 5-second dead time exhaustion and cannot attack!
 
     const now = performance.now();
-    if (now - player.lastAttackTime < player.character.attackCooldown) {
+    const effectiveCooldown = (player.cooldownBuffTimer && player.cooldownBuffTimer > 0)
+      ? Math.round(player.character.attackCooldown / 2)
+      : player.character.attackCooldown;
+
+    if (now - player.lastAttackTime < effectiveCooldown) {
       return; // On cooldown
     }
     player.lastAttackTime = now;
@@ -3219,53 +3534,321 @@ export const TwoPlayerBattleGame: React.FC = () => {
     const speed = player.character.projectileSpeed;
     const char = player.character;
 
-    // Boss Multi-Ability System (Lots of moves & abilities with different damage values, bigger scale, no extra health)
-    if (char.id.startsWith('boss_')) {
-      const moveRoll = Math.random();
-      let moveName = 'Boss Strike';
-      let dmg = 16;
-      let projType = char.projectileType;
-      let prSpeed = speed;
+    const dmgMultiplier = (player.damageBuffTimer && player.damageBuffTimer > 0) ? 2 : 1;
+    const isUltimateHit = (player.ultimateHitBuffTimer && player.ultimateHitBuffTimer > 0);
 
-      if (moveRoll < 0.33) {
-        moveName = 'Quick Bolt';
-        dmg = 14;
-        prSpeed = speed * 1.35;
-      } else if (moveRoll < 0.68) {
-        moveName = 'Heavy Shockwave';
-        dmg = 22;
-        screenShakeRef.current = 10;
-      } else {
-        moveName = 'Ultimate Nova';
-        dmg = 32;
-        prSpeed = speed * 1.5;
-        screenShakeRef.current = 18;
-      }
-
-      soundManager.playLaser();
+    const pushProj = (projData: Omit<Projectile, 'id'>) => {
       projectilesRef.current.push({
+        ...projData,
         id: Math.random(),
-        owner: playerNum,
-        x: player.x + (dir === 1 ? player.width + 4 : -24),
-        y: player.y + player.height / 2 - 12,
-        vx: dir * prSpeed,
-        vy: (Math.random() - 0.5) * 2,
-        radius: dmg > 25 ? 20 : 12,
-        damage: dmg,
-        type: projType,
-        color: char.secondaryColor,
-        life: 55,
+        damage: Math.round(projData.damage * dmgMultiplier),
+        isHoming: isUltimateHit || !!projData.isHoming,
       });
+    };
 
-      damageNumbersRef.current.push({
-        id: Math.random(),
-        x: player.x + player.width / 2,
-        y: player.y - 20,
-        damage: `${moveName} (${dmg} DMG)!`,
-        life: 35,
-        color: char.secondaryColor,
-      });
-      return;
+    // Boss Multi-Ability System (Huge Screen-Filling Moves & 5-Second Dead Time Stun Mechanics)
+    if (char.id.startsWith('boss_')) {
+      player.bossAttackCombo = (player.bossAttackCombo || 0) + 1;
+      const isOverheatCycle = player.bossAttackCombo >= 3;
+
+      if (char.id === 'boss_titan') {
+        // === TITAN COLOSSUS: Earth-shattering Quakes & Volcanic Eruptions ===
+        soundManager.playExplosion();
+        screenShakeRef.current = 18;
+
+        // 1. Massive Forward Seismic Shockwave
+        projectilesRef.current.push({
+          id: Math.random(),
+          owner: playerNum,
+          x: player.x + (dir === 1 ? player.width + 4 : -80),
+          y: player.y + player.height / 2 - 16,
+          vx: dir * 4.5,
+          vy: 0,
+          radius: 46,
+          damage: 32,
+          type: 'melee_slam',
+          color: '#ef4444',
+          life: 18,
+          isMeleeHitbox: true,
+        });
+
+        // 2. High-Arc Volcanic Molten Boulders (3 Heavy Projectiles)
+        const boulderVelocities = [
+          { vx: dir * 6.5, vy: -6.5, col: '#f97316' },
+          { vx: dir * 9.5, vy: -5.0, col: '#ef4444' },
+          { vx: dir * 4.0, vy: -8.0, col: '#b91c1c' },
+        ];
+        boulderVelocities.forEach((b) => {
+          projectilesRef.current.push({
+            id: Math.random(),
+            owner: playerNum,
+            x: player.x + player.width / 2,
+            y: player.y + 10,
+            vx: b.vx,
+            vy: b.vy,
+            radius: 16,
+            damage: 24,
+            type: 'cluster_bomb',
+            color: b.col,
+            life: 75,
+          });
+        });
+
+        // 3. Fiery Smoke Eruption Particles
+        for (let i = 0; i < 22; i++) {
+          particlesRef.current.push({
+            x: player.x + (dir === 1 ? player.width : 0),
+            y: player.y + player.height - 10,
+            vx: (Math.random() - 0.5) * 12,
+            vy: -Math.random() * 8,
+            color: Math.random() > 0.5 ? '#ef4444' : '#f97316',
+            size: 5,
+            life: 25,
+            maxLife: 25,
+          });
+        }
+
+        damageNumbersRef.current.push({
+          id: Math.random(),
+          x: player.x + player.width / 2,
+          y: player.y - 25,
+          damage: `🌋 SEISMIC ERUPTION (Combo ${player.bossAttackCombo}/3)!`,
+          life: 40,
+          color: '#ef4444',
+        });
+
+        if (isOverheatCycle) {
+          // 5-SECOND DEAD TIME TRIGGER!
+          player.bossStunTimer = 300; // 300 frames = exactly 5 seconds!
+          player.bossAttackCombo = 0;
+          screenShakeRef.current = 24;
+          soundManager.playLaser();
+          setGretCommentary('🌋 TITAN CORE OVERHEATED! 5-SECOND DEAD TIME! STRIKE NOW FOR +50% CRIT DAMAGE!');
+
+          // 8-Way Radial Magma Overheat Burst
+          for (let i = 0; i < 8; i++) {
+            const angle = (i * Math.PI) / 4;
+            projectilesRef.current.push({
+              id: Math.random(),
+              owner: playerNum,
+              x: player.x + player.width / 2,
+              y: player.y + player.height / 2,
+              vx: Math.cos(angle) * 7.5,
+              vy: Math.sin(angle) * 7.5,
+              radius: 14,
+              damage: 20,
+              type: 'quantum_pulse',
+              color: '#facc15',
+              life: 40,
+            });
+          }
+
+          damageNumbersRef.current.push({
+            id: Math.random(),
+            x: player.x + player.width / 2,
+            y: player.y - 48,
+            damage: '⚠️ 5s DEAD TIME! EXHAUSTED (+50% CRIT)! 💥',
+            life: 80,
+            color: '#facc15',
+          });
+        }
+        return;
+      } else if (char.id === 'boss_reaper') {
+        // === SHADOW REAPER: Gigantic Void Scythe Waves & Nether Phantoms ===
+        soundManager.playLaser();
+        screenShakeRef.current = 15;
+
+        // 1. Gigantic Void Crescent Cleave Wave
+        projectilesRef.current.push({
+          id: Math.random(),
+          owner: playerNum,
+          x: player.x + (dir === 1 ? player.width + 6 : -60),
+          y: player.y + player.height / 2 - 20,
+          vx: dir * speed * 1.25,
+          vy: 0,
+          radius: 44,
+          damage: 30,
+          type: 'scythe',
+          color: '#9333ea',
+          life: 55,
+          pullsEnemy: true,
+        });
+
+        // 2. Dual Tracking Nether Phantoms
+        [-2.5, 2.5].forEach((offsetVy) => {
+          projectilesRef.current.push({
+            id: Math.random(),
+            owner: playerNum,
+            x: player.x + player.width / 2,
+            y: player.y + 20,
+            vx: dir * 7.5,
+            vy: offsetVy,
+            radius: 16,
+            damage: 22,
+            type: 'skull',
+            color: '#c084fc',
+            life: 65,
+          });
+        });
+
+        // 3. Shadow Mist Particles
+        for (let i = 0; i < 20; i++) {
+          particlesRef.current.push({
+            x: player.x + player.width / 2,
+            y: player.y + player.height / 2,
+            vx: (Math.random() - 0.5) * 8,
+            vy: (Math.random() - 0.5) * 8,
+            color: '#c084fc',
+            size: 4,
+            life: 22,
+            maxLife: 22,
+          });
+        }
+
+        damageNumbersRef.current.push({
+          id: Math.random(),
+          x: player.x + player.width / 2,
+          y: player.y - 25,
+          damage: `🌌 NETHER CLEAVE (Combo ${player.bossAttackCombo}/3)!`,
+          life: 40,
+          color: '#c084fc',
+        });
+
+        if (isOverheatCycle) {
+          // 5-SECOND DEAD TIME TRIGGER!
+          player.bossStunTimer = 300; // 300 frames = 5 seconds!
+          player.bossAttackCombo = 0;
+          screenShakeRef.current = 20;
+          soundManager.playLaser();
+          setGretCommentary('🌌 SHADOW REAPER DIMENSIONAL COLLAPSE! 5-SECOND DEAD TIME! BURST HIM DOWN WITH +50% CRIT!');
+
+          // 6-Way Radial Stasis Chronospheres
+          for (let i = 0; i < 6; i++) {
+            const angle = (i * Math.PI) / 3;
+            projectilesRef.current.push({
+              id: Math.random(),
+              owner: playerNum,
+              x: player.x + player.width / 2,
+              y: player.y + player.height / 2,
+              vx: Math.cos(angle) * 6.5,
+              vy: Math.sin(angle) * 6.5,
+              radius: 16,
+              damage: 18,
+              type: 'stasis_sphere',
+              color: '#a855f7',
+              life: 45,
+            });
+          }
+
+          damageNumbersRef.current.push({
+            id: Math.random(),
+            x: player.x + player.width / 2,
+            y: player.y - 48,
+            damage: '⚠️ 5s DEAD TIME! EXHAUSTED (+50% CRIT)! 💥',
+            life: 80,
+            color: '#c084fc',
+          });
+        }
+        return;
+      } else {
+        // === CYBER DRAGON MECH: Hyper Plasma Breath Beam & Micro-Missile Swarm ===
+        soundManager.playExplosion();
+        screenShakeRef.current = 17;
+
+        // 1. Colossal Plasma Flame Breath
+        projectilesRef.current.push({
+          id: Math.random(),
+          owner: playerNum,
+          x: player.x + (dir === 1 ? player.width + 6 : -90),
+          y: player.y + player.height / 2 - 20,
+          vx: dir * 8.5,
+          vy: 0,
+          radius: 52,
+          damage: 34,
+          type: 'dragon_breath',
+          color: '#f97316',
+          life: 26,
+          isMeleeHitbox: true,
+        });
+
+        // 2. Quad Homing Cluster Rockets
+        const rocketAngles = [-5.5, -3.0, -1.0, -7.0];
+        rocketAngles.forEach((rVy, rIdx) => {
+          projectilesRef.current.push({
+            id: Math.random(),
+            owner: playerNum,
+            x: player.x + player.width / 2,
+            y: player.y + 15,
+            vx: dir * (5.5 + rIdx * 1.5),
+            vy: rVy,
+            radius: 13,
+            damage: 20,
+            type: 'rocket',
+            color: '#fbbf24',
+            life: 70,
+          });
+        });
+
+        // 3. Plasma Jet Thruster Sparks
+        for (let i = 0; i < 24; i++) {
+          particlesRef.current.push({
+            x: player.x + (dir === 1 ? player.width + 10 : -10),
+            y: player.y + player.height / 2,
+            vx: dir * Math.random() * 9,
+            vy: (Math.random() - 0.5) * 6,
+            color: Math.random() > 0.5 ? '#f97316' : '#facc15',
+            size: 4.5,
+            life: 20,
+            maxLife: 20,
+          });
+        }
+
+        damageNumbersRef.current.push({
+          id: Math.random(),
+          x: player.x + player.width / 2,
+          y: player.y - 25,
+          damage: `⚡ HYPER PLASMA SALVO (Combo ${player.bossAttackCombo}/3)!`,
+          life: 40,
+          color: '#f97316',
+        });
+
+        if (isOverheatCycle) {
+          // 5-SECOND DEAD TIME TRIGGER!
+          player.bossStunTimer = 300; // 300 frames = 5 seconds!
+          player.bossAttackCombo = 0;
+          screenShakeRef.current = 22;
+          soundManager.playLaser();
+          setGretCommentary('⚡ CYBER DRAGON REACTORS OVERHEATED! 5-SECOND DEAD TIME! HIT WITH ALL MIGHT!');
+
+          // 6-Beam Spread Laser Array
+          for (let i = 0; i < 6; i++) {
+            const spreadVy = (i - 2.5) * 2.8;
+            projectilesRef.current.push({
+              id: Math.random(),
+              owner: playerNum,
+              x: player.x + player.width / 2,
+              y: player.y + player.height / 2,
+              vx: dir * 10,
+              vy: spreadVy,
+              radius: 14,
+              damage: 18,
+              type: 'laser',
+              color: '#f59e0b',
+              life: 38,
+            });
+          }
+
+          damageNumbersRef.current.push({
+            id: Math.random(),
+            x: player.x + player.width / 2,
+            y: player.y - 48,
+            damage: '⚠️ 5s DEAD TIME! EXHAUSTED (+50% CRIT)! 💥',
+            life: 80,
+            color: '#f97316',
+          });
+        }
+        return;
+      }
     }
 
     // 1. Teleport Ability (Blinks behind enemy and strikes - 4s cooldown)
@@ -3392,8 +3975,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
         player.vx = dir * 6.5;
         soundManager.playAttack();
         screenShakeRef.current = 5;
-        projectilesRef.current.push({
-          id: Math.random(),
+        pushProj({
           owner: playerNum,
           x: player.x + (dir === 1 ? player.width + 4 : -50),
           y: player.y + player.height / 2 - 12,
@@ -3417,8 +3999,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
       screenShakeRef.current = char.projectileType === 'melee_slam' ? 14 : 8;
 
       const hitW = char.projectileType === 'dragon_breath' ? 90 : 75;
-      projectilesRef.current.push({
-        id: Math.random(),
+      pushProj({
         owner: playerNum,
         x: player.x + (dir === 1 ? player.width + 6 : -hitW + 4),
         y: player.y + player.height / 2 - 14,
@@ -3437,8 +4018,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
     // 3. Pull Ability (Chain Harpoon, Plasma Tether Reel)
     if (char.pullsEnemy || char.attackStyle === 'pull' || char.projectileType === 'harpoon' || char.projectileType === 'tether_wire') {
       soundManager.playLaser();
-      projectilesRef.current.push({
-        id: Math.random(),
+      pushProj({
         owner: playerNum,
         x: player.x + (dir === 1 ? player.width + 8 : -20),
         y: player.y + player.height / 2 - 6,
@@ -3457,8 +4037,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
     soundManager.playAttack();
 
     if (char.projectileType === 'slash') {
-      projectilesRef.current.push({
-        id: Math.random(),
+      pushProj({
         owner: playerNum,
         x: player.x + (dir === 1 ? player.width + 6 : -18),
         y: player.y + player.height / 2 - 12,
@@ -3471,8 +4050,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
         life: 22,
       });
     } else if (char.projectileType === 'arrow') {
-      projectilesRef.current.push({
-        id: Math.random(),
+      pushProj({
         owner: playerNum,
         x: player.x + (dir === 1 ? player.width + 4 : -10),
         y: player.y + player.height / 2 - 6,
@@ -3485,8 +4063,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
         life: 65,
       });
     } else if (char.projectileType === 'fireball') {
-      projectilesRef.current.push({
-        id: Math.random(),
+      pushProj({
         owner: playerNum,
         x: player.x + (dir === 1 ? player.width + 8 : -14),
         y: player.y + player.height / 2 - 8,
@@ -3501,8 +4078,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
     } else if (char.projectileType === 'shuriken') {
       soundManager.playLaser();
       [-1, 1].forEach((angleOffset) => {
-        projectilesRef.current.push({
-          id: Math.random(),
+        pushProj({
           owner: playerNum,
           x: player.x + (dir === 1 ? player.width + 6 : -10),
           y: player.y + player.height / 2 - 4,
@@ -3517,8 +4093,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
       });
     } else if (char.projectileType === 'laser') {
       soundManager.playLaser();
-      projectilesRef.current.push({
-        id: Math.random(),
+      pushProj({
         owner: playerNum,
         x: player.x + (dir === 1 ? player.width + 8 : -16),
         y: player.y + player.height / 2 - 5,
@@ -3532,8 +4107,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
       });
     } else if (char.projectileType === 'rocket') {
       soundManager.playExplosion();
-      projectilesRef.current.push({
-        id: Math.random(),
+      pushProj({
         owner: playerNum,
         x: player.x + (dir === 1 ? player.width + 6 : -16),
         y: player.y + player.height / 2 - 8,
@@ -3547,8 +4121,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
       });
     } else if (char.projectileType === 'ice_shard') {
       soundManager.playCapture();
-      projectilesRef.current.push({
-        id: Math.random(),
+      pushProj({
         owner: playerNum,
         x: player.x + (dir === 1 ? player.width + 6 : -12),
         y: player.y + player.height / 2 - 6,
@@ -3562,8 +4135,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
       });
     } else if (char.projectileType === 'lightning') {
       soundManager.playLaser();
-      projectilesRef.current.push({
-        id: Math.random(),
+      pushProj({
         owner: playerNum,
         x: player.x + (dir === 1 ? player.width + 10 : -16),
         y: player.y + player.height / 2 - 6,
@@ -3578,8 +4150,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
     } else if (char.projectileType === 'poison_dart') {
       soundManager.playAttack();
       [-0.8, 0.8].forEach((offsetY) => {
-        projectilesRef.current.push({
-          id: Math.random(),
+        pushProj({
           owner: playerNum,
           x: player.x + (dir === 1 ? player.width + 4 : -8),
           y: player.y + player.height / 2 + offsetY * 5 - 4,
@@ -3594,8 +4165,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
       });
     } else if (char.projectileType === 'scythe') {
       soundManager.playAttack();
-      projectilesRef.current.push({
-        id: Math.random(),
+      pushProj({
         owner: playerNum,
         x: player.x + (dir === 1 ? player.width + 8 : -16),
         y: player.y + player.height / 2 - 10,
@@ -3609,8 +4179,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
       });
     } else if (char.projectileType === 'holy_beam') {
       soundManager.playLaser();
-      projectilesRef.current.push({
-        id: Math.random(),
+      pushProj({
         owner: playerNum,
         x: player.x + (dir === 1 ? player.width + 10 : -20),
         y: player.y + player.height / 2 - 6,
@@ -3624,8 +4193,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
       });
     } else if (char.projectileType === 'boomerang') {
       soundManager.playAttack();
-      projectilesRef.current.push({
-        id: Math.random(),
+      pushProj({
         owner: playerNum,
         x: player.x + (dir === 1 ? player.width + 6 : -14),
         y: player.y + player.height / 2 - 8,
@@ -3640,8 +4208,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
     } else if (char.projectileType === 'dual_laser') {
       soundManager.playLaser();
       [-5, 5].forEach((offsetY) => {
-        projectilesRef.current.push({
-          id: Math.random(),
+        pushProj({
           owner: playerNum,
           x: player.x + (dir === 1 ? player.width + 6 : -14),
           y: player.y + player.height / 2 + offsetY - 3,
@@ -3656,8 +4223,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
       });
     } else if (char.projectileType === 'wind_slash') {
       soundManager.playAttack();
-      projectilesRef.current.push({
-        id: Math.random(),
+      pushProj({
         owner: playerNum,
         x: player.x + (dir === 1 ? player.width + 8 : -18),
         y: player.y + player.height / 2 - 14,
@@ -3671,8 +4237,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
       });
     } else if (char.projectileType === 'skull') {
       soundManager.playCapture();
-      projectilesRef.current.push({
-        id: Math.random(),
+      pushProj({
         owner: playerNum,
         x: player.x + (dir === 1 ? player.width + 8 : -14),
         y: player.y + player.height / 2 - 8,
@@ -3686,8 +4251,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
       });
     } else if (char.projectileType === 'star_nova') {
       soundManager.playLaser();
-      projectilesRef.current.push({
-        id: Math.random(),
+      pushProj({
         owner: playerNum,
         x: player.x + (dir === 1 ? player.width + 8 : -16),
         y: player.y + player.height / 2 - 8,
@@ -3701,8 +4265,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
       });
     } else if (char.projectileType === 'cluster_bomb') {
       soundManager.playAttack();
-      projectilesRef.current.push({
-        id: Math.random(),
+      pushProj({
         owner: playerNum,
         x: player.x + (dir === 1 ? player.width + 6 : -14),
         y: player.y + player.height / 2 - 10,
@@ -3716,8 +4279,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
       });
     } else if (char.projectileType === 'quantum_pulse') {
       soundManager.playLaser();
-      projectilesRef.current.push({
-        id: Math.random(),
+      pushProj({
         owner: playerNum,
         x: player.x + (dir === 1 ? player.width + 10 : -22),
         y: player.y + player.height / 2 - 10,
@@ -3732,8 +4294,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
     } else if (char.projectileType === 'radiant_shockwave') {
       soundManager.playLaser();
       player.shieldPulseTimer = 16;
-      projectilesRef.current.push({
-        id: Math.random(),
+      pushProj({
         owner: playerNum,
         x: player.x + (dir === 1 ? player.width + 6 : -18),
         y: player.y + player.height / 2 - 14,
@@ -3747,8 +4308,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
       });
     } else if (char.projectileType === 'glacial_spike') {
       soundManager.playAttack();
-      projectilesRef.current.push({
-        id: Math.random(),
+      pushProj({
         owner: playerNum,
         x: player.x + (dir === 1 ? player.width + 8 : -20),
         y: player.y + player.height / 2 - 10,
@@ -3764,8 +4324,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
     } else if (char.projectileType === 'mirror_slash') {
       soundManager.playLaser();
       player.reflectPulseTimer = 18;
-      projectilesRef.current.push({
-        id: Math.random(),
+      pushProj({
         owner: playerNum,
         x: player.x + (dir === 1 ? player.width + 6 : -18),
         y: player.y + player.height / 2 - 12,
@@ -3779,8 +4338,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
       });
     } else if (char.projectileType === 'time_paradox') {
       soundManager.playLaser();
-      projectilesRef.current.push({
-        id: Math.random(),
+      pushProj({
         owner: playerNum,
         x: player.x + (dir === 1 ? player.width + 6 : -16),
         y: player.y + player.height / 2 - 8,
@@ -3794,8 +4352,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
       });
     } else if (char.projectileType === 'frost_freeze') {
       soundManager.playAttack();
-      projectilesRef.current.push({
-        id: Math.random(),
+      pushProj({
         owner: playerNum,
         x: player.x + (dir === 1 ? player.width + 8 : -16),
         y: player.y + player.height / 2 - 8,
@@ -3810,8 +4367,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
       });
     } else if (char.projectileType === 'web_trap') {
       soundManager.playAttack();
-      projectilesRef.current.push({
-        id: Math.random(),
+      pushProj({
         owner: playerNum,
         x: player.x + (dir === 1 ? player.width + 8 : -16),
         y: player.y + player.height / 2 - 6,
@@ -3826,8 +4382,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
       });
     } else if (char.projectileType === 'stasis_sphere') {
       soundManager.playLaser();
-      projectilesRef.current.push({
-        id: Math.random(),
+      pushProj({
         owner: playerNum,
         x: player.x + (dir === 1 ? player.width + 8 : -18),
         y: player.y + player.height / 2 - 10,
@@ -3852,8 +4407,8 @@ export const TwoPlayerBattleGame: React.FC = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const W = 800;
-    const H = 460;
+    const W = 900;
+    const H = 500;
     canvas.width = W;
     canvas.height = H;
 
@@ -3869,12 +4424,33 @@ export const TwoPlayerBattleGame: React.FC = () => {
       const allPlayers = playersRef.current;
       if (allPlayers.length === 0) return;
 
+      // Synchronize Live Boss State with React HUD
+      const currentBossEntity = allPlayers.find((pl) => pl.character.id.startsWith('boss_'));
+      if (currentBossEntity) {
+        const nowMs = performance.now();
+        if (nowMs - lastBossSyncRef.current > 40) {
+          lastBossSyncRef.current = nowMs;
+          setBossLiveState({
+            id: currentBossEntity.character.id,
+            name: currentBossEntity.character.name,
+            title: currentBossEntity.character.title,
+            hp: Math.max(0, currentBossEntity.hp),
+            maxHp: currentBossEntity.maxHp,
+            stunTimer: currentBossEntity.bossStunTimer || 0,
+            comboCount: currentBossEntity.bossAttackCombo || 0,
+            color: currentBossEntity.character.color,
+            secondaryColor: currentBossEntity.character.secondaryColor,
+          });
+        }
+      }
+
       const keys = keysPressed.current;
 
       // 1 & 2. Process Inputs for all players (P1, P2, P3, P4 or AI)
       allPlayers.forEach((p) => {
         if (p.hp <= 0) return;
         if (p.freezeTimer > 0 || p.timeStopTimer > 0) return;
+        if (p.bossStunTimer && p.bossStunTimer > 0) return; // Completely immobilized in 5-second dead time!
 
         if (!p.isAi) {
           // Human Controlled Player
@@ -3922,6 +4498,7 @@ export const TwoPlayerBattleGame: React.FC = () => {
           }
 
           if (jumpKey) {
+            const jumpPower = (p.jumpBuffTimer && p.jumpBuffTimer > 0) ? p.character.jumpForce * 1.6 : p.character.jumpForce;
             if (p.character.canFly) {
               p.vy = Math.max(p.vy - 0.78, -5.5);
               p.isGrounded = false;
@@ -3938,13 +4515,13 @@ export const TwoPlayerBattleGame: React.FC = () => {
                 });
               }
             } else if (p.isGrounded) {
-              p.vy = -p.character.jumpForce;
+              p.vy = -jumpPower;
               p.isGrounded = false;
               p.jumpsLeft = p.character.tripleJump ? 2 : p.character.doubleJump ? 1 : 0;
               soundManager.playJump();
               if (jumpCode) keys[jumpCode] = false;
             } else if (p.jumpsLeft > 0) {
-              p.vy = -p.character.jumpForce * 0.92;
+              p.vy = -jumpPower * 0.92;
               p.jumpsLeft--;
               soundManager.playJump();
               if (jumpCode) keys[jumpCode] = false;
@@ -3993,7 +4570,8 @@ export const TwoPlayerBattleGame: React.FC = () => {
             }
 
             if (p.isGrounded && (dy < -40 || Math.random() < jumpChance)) {
-              p.vy = -p.character.jumpForce;
+              const aiJumpPower = (p.jumpBuffTimer && p.jumpBuffTimer > 0) ? p.character.jumpForce * 1.6 : p.character.jumpForce;
+              p.vy = -aiJumpPower;
               p.isGrounded = false;
               soundManager.playJump();
             }
@@ -4011,6 +4589,21 @@ export const TwoPlayerBattleGame: React.FC = () => {
       // 3. Physics & Boundaries Update for Players
       allPlayers.forEach((p) => {
         // Status timers decay
+        if (p.bossStunTimer && p.bossStunTimer > 0) {
+          p.bossStunTimer--;
+          p.vx = 0;
+          if (p.bossStunTimer === 0) {
+            damageNumbersRef.current.push({
+              id: Math.random(),
+              x: p.x + p.width / 2,
+              y: p.y - 36,
+              damage: 'ENRAGED RESUME! ⚡',
+              life: 45,
+              color: '#ef4444',
+            });
+            soundManager.playExplosion();
+          }
+        }
         if (p.freezeTimer > 0) {
           p.freezeTimer--;
           p.vx = 0;
@@ -4032,8 +4625,17 @@ export const TwoPlayerBattleGame: React.FC = () => {
         if (p.reflectCooldownTimer > 0) p.reflectCooldownTimer--;
         if (p.freezeCooldownTimer > 0) p.freezeCooldownTimer--;
 
-        // Max horizontal speed clamp
-        const maxSpd = p.character.speed;
+        // Power-Up Buff Timers Decay
+        if (p.speedBuffTimer && p.speedBuffTimer > 0) p.speedBuffTimer--;
+        if (p.cooldownBuffTimer && p.cooldownBuffTimer > 0) p.cooldownBuffTimer--;
+        if (p.damageBuffTimer && p.damageBuffTimer > 0) p.damageBuffTimer--;
+        if (p.jumpBuffTimer && p.jumpBuffTimer > 0) p.jumpBuffTimer--;
+        if (p.shieldBuffTimer && p.shieldBuffTimer > 0) p.shieldBuffTimer--;
+        if (p.ultimateHitBuffTimer && p.ultimateHitBuffTimer > 0) p.ultimateHitBuffTimer--;
+
+        // Max horizontal speed clamp (boosted if speedBuffTimer active)
+        const baseSpeed = p.character.speed;
+        const maxSpd = (p.speedBuffTimer && p.speedBuffTimer > 0) ? baseSpeed * 1.7 : baseSpeed;
         p.vx = Math.max(-maxSpd, Math.min(maxSpd, p.vx));
         p.x += p.vx;
         p.vx *= FRICTION;
@@ -4107,9 +4709,205 @@ export const TwoPlayerBattleGame: React.FC = () => {
         });
       });
 
+      // 3.5. Power-Up Drops in Boss Battles (Speed, Cooldown /2, 2* Damage, Jump, Heal, Invincible Shield, Ultimate Hit)
+      const isBossBattle = gameMode === 'boss_solo' || gameMode === 'boss_coop';
+      if (isBossBattle) {
+        powerUpDropTimerRef.current++;
+        // Drop power-up every 360 frames (6 seconds) with max 3 power-ups on screen
+        if (powerUpDropTimerRef.current >= 360 && powerUpsRef.current.length < 3) {
+          powerUpDropTimerRef.current = 0;
+          const powerUpTypes: PowerUpType[] = ['speed', 'cooldown', 'damage', 'jump', 'heal', 'shield', 'ultimate_hit'];
+          const chosenType = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
+          const config = POWERUP_CONFIGS[chosenType];
+          const spawnX = 80 + Math.random() * (W - 160);
+
+          powerUpsRef.current.push({
+            id: Math.random(),
+            type: chosenType,
+            x: spawnX,
+            y: -30,
+            vx: (Math.random() - 0.5) * 0.8,
+            vy: 1.3,
+            width: 32,
+            height: 32,
+            life: 1200,
+            isGrounded: false,
+            label: config.label,
+            icon: config.icon,
+            color: config.color,
+            glowColor: config.glowColor,
+            description: config.description,
+          });
+
+          // Drop warning sound & flare
+          soundManager.playLaser();
+          for (let i = 0; i < 8; i++) {
+            particlesRef.current.push({
+              x: spawnX + 16,
+              y: 10,
+              vx: (Math.random() - 0.5) * 4,
+              vy: Math.random() * 3,
+              color: config.color,
+              size: 3.5,
+              life: 25,
+              maxLife: 25,
+            });
+          }
+        }
+      }
+
+      // Update Dropped Power-Ups & Collision Detection
+      const nextPowerUps: DroppedPowerUp[] = [];
+      powerUpsRef.current.forEach((pup) => {
+        pup.life--;
+        if (pup.life <= 0) return;
+
+        if (!pup.isGrounded) {
+          pup.y += pup.vy;
+          pup.x += pup.vx;
+          if (pup.x < 30) {
+            pup.x = 30;
+            pup.vx = Math.abs(pup.vx);
+          }
+          if (pup.x + pup.width > W - 30) {
+            pup.x = W - 30 - pup.width;
+            pup.vx = -Math.abs(pup.vx);
+          }
+
+          platforms.forEach((plat) => {
+            if (
+              pup.x + pup.width > plat.x &&
+              pup.x < plat.x + plat.width &&
+              pup.y + pup.height >= plat.y &&
+              pup.y + pup.height <= plat.y + 16 &&
+              pup.vy >= 0
+            ) {
+              pup.y = plat.y - pup.height;
+              pup.vy = 0;
+              pup.vx = 0;
+              pup.isGrounded = true;
+            }
+          });
+
+          if (pup.y + pup.height >= H - 15) {
+            pup.y = H - 15 - pup.height;
+            pup.vy = 0;
+            pup.vx = 0;
+            pup.isGrounded = true;
+          }
+        }
+
+        let isCollected = false;
+        allPlayers.forEach((p) => {
+          if (isCollected || p.hp <= 0 || p.character.id.startsWith('boss_')) return;
+
+          if (
+            p.x < pup.x + pup.width &&
+            p.x + p.width > pup.x &&
+            p.y < pup.y + pup.height &&
+            p.y + p.height > pup.y
+          ) {
+            isCollected = true;
+            soundManager.playVictory();
+            const BUFF_DURATION = 600; // 10 seconds at 60 FPS
+
+            if (pup.type === 'speed') {
+              p.speedBuffTimer = BUFF_DURATION;
+              setGretCommentary(`⚡ ${p.name || 'Player'} grabbed SPEED BOOST! +70% Speed for 10s!`);
+            } else if (pup.type === 'cooldown') {
+              p.cooldownBuffTimer = BUFF_DURATION;
+              setGretCommentary(`⏱️ ${p.name || 'Player'} grabbed FAST COOLDOWN! Attack Cooldown cut by /2 for 10s!`);
+            } else if (pup.type === 'damage') {
+              p.damageBuffTimer = BUFF_DURATION;
+              setGretCommentary(`🔥 ${p.name || 'Player'} grabbed 2X DAMAGE! Attacks deal 2* double damage for 10s!`);
+            } else if (pup.type === 'jump') {
+              p.jumpBuffTimer = BUFF_DURATION;
+              setGretCommentary(`🦘 ${p.name || 'Player'} grabbed SUPER JUMP! +60% Jump Height for 10s!`);
+            } else if (pup.type === 'heal') {
+              p.hp = Math.min(p.maxHp, p.hp + 120);
+              setGretCommentary(`💚 ${p.name || 'Player'} grabbed HEALTH RESTORE! Restored +120 HP!`);
+            } else if (pup.type === 'shield') {
+              p.shieldBuffTimer = BUFF_DURATION;
+              setGretCommentary(`🛡️ ${p.name || 'Player'} grabbed INVINCIBLE SHIELD! Immune to all damage for 10s!`);
+            } else if (pup.type === 'ultimate_hit') {
+              p.ultimateHitBuffTimer = BUFF_DURATION;
+              setGretCommentary(`🎯 ${p.name || 'Player'} grabbed ULTIMATE HIT! 100% Tracking Attacks for 10s!`);
+            }
+
+            damageNumbersRef.current.push({
+              id: Math.random(),
+              x: p.x + p.width / 2,
+              y: p.y - 32,
+              damage: `✨ ${pup.label}! (10s)`,
+              life: 55,
+              color: pup.color,
+            });
+
+            for (let i = 0; i < 22; i++) {
+              particlesRef.current.push({
+                x: pup.x + pup.width / 2,
+                y: pup.y + pup.height / 2,
+                vx: (Math.random() - 0.5) * 9,
+                vy: (Math.random() - 0.5) * 9,
+                color: pup.color,
+                size: 4,
+                life: 25,
+                maxLife: 25,
+              });
+            }
+          }
+        });
+
+        if (!isCollected) {
+          nextPowerUps.push(pup);
+        }
+      });
+      powerUpsRef.current = nextPowerUps;
+
       // 4. Update Projectiles
       const nextProjectiles: Projectile[] = [];
       projectilesRef.current.forEach((proj) => {
+        // Homing projectile tracking (from Ultimate Hit power-up or homing attacks)
+        if (proj.isHoming) {
+          const targetEnemies = allPlayers.filter((p) => p.id !== proj.owner && p.hp > 0);
+          if (targetEnemies.length > 0) {
+            let closestEnemy = targetEnemies[0];
+            let minEnemyDist = Infinity;
+            targetEnemies.forEach((en) => {
+              const dist = Math.hypot(en.x + en.width / 2 - proj.x, en.y + en.height / 2 - proj.y);
+              if (dist < minEnemyDist) {
+                minEnemyDist = dist;
+                closestEnemy = en;
+              }
+            });
+
+            const targetX = closestEnemy.x + closestEnemy.width / 2;
+            const targetY = closestEnemy.y + closestEnemy.height / 2;
+            const angle = Math.atan2(targetY - proj.y, targetX - proj.x);
+            const currSpeed = Math.hypot(proj.vx, proj.vy) || 8;
+            proj.vx += Math.cos(angle) * 0.95;
+            proj.vy += Math.sin(angle) * 0.95;
+            const newSpeed = Math.hypot(proj.vx, proj.vy);
+            if (newSpeed > 0) {
+              proj.vx = (proj.vx / newSpeed) * currSpeed;
+              proj.vy = (proj.vy / newSpeed) * currSpeed;
+            }
+
+            if (Math.random() < 0.35) {
+              particlesRef.current.push({
+                x: proj.x,
+                y: proj.y,
+                vx: (Math.random() - 0.5) * 2,
+                vy: (Math.random() - 0.5) * 2,
+                color: '#c084fc',
+                size: 2.5,
+                life: 14,
+                maxLife: 14,
+              });
+            }
+          }
+        }
+
         proj.x += proj.vx;
         proj.y += proj.vy;
         proj.life--;
@@ -4161,6 +4959,34 @@ export const TwoPlayerBattleGame: React.FC = () => {
 
           if (hitTarget) {
             didHitPlayer = true;
+
+            // Check Invincible Shield Buff (Immune to all damage for 10s)
+            if (target.shieldBuffTimer && target.shieldBuffTimer > 0) {
+              soundManager.playHit();
+              screenShakeRef.current = 3;
+              damageNumbersRef.current.push({
+                id: Math.random(),
+                x: target.x + target.width / 2,
+                y: target.y - 20,
+                damage: '🛡️ INVINCIBLE (0 DMG)!',
+                life: 30,
+                color: '#facc15',
+              });
+              for (let i = 0; i < 10; i++) {
+                particlesRef.current.push({
+                  x: proj.x,
+                  y: proj.y,
+                  vx: (Math.random() - 0.5) * 6,
+                  vy: (Math.random() - 0.5) * 6,
+                  color: '#facc15',
+                  size: 3,
+                  life: 15,
+                  maxLife: 15,
+                });
+              }
+              break;
+            }
+
             // A. Check Reverse / Reflect Attack Ability (4s reflect cooldown)
             if (target.character.reversesAttacks && target.reflectCooldownTimer <= 0 && !proj.isReflected && !proj.isMeleeHitbox) {
               proj.isReflected = true;
@@ -4237,9 +5063,14 @@ export const TwoPlayerBattleGame: React.FC = () => {
               break;
             }
 
-            // Normal Hit: Apply damage (1/4 damage if target is rooted, frozen, or timestopped)
+            // Normal Hit: Apply damage (50% bonus crit during 5s dead time, 1/4 damage if target is CC'd)
             const isTargetCC = target.freezeTimer > 0 || target.rootTimer > 0 || target.timeStopTimer > 0;
-            const effectiveDamage = isTargetCC ? Math.max(1, Math.round(proj.damage / 4)) : proj.damage;
+            const isTargetInDeadTime = (target.bossStunTimer || 0) > 0;
+            const effectiveDamage = isTargetInDeadTime
+              ? Math.round(proj.damage * 1.5)
+              : isTargetCC
+              ? Math.max(1, Math.round(proj.damage / 4))
+              : proj.damage;
             target.hp -= effectiveDamage;
             target.isHit = true;
             target.hitTimer = 12;
@@ -4377,10 +5208,14 @@ export const TwoPlayerBattleGame: React.FC = () => {
             damageNumbersRef.current.push({
               id: Math.random(),
               x: target.x + target.width / 2,
-              y: target.y - 12,
-              damage: isTargetCC ? `${effectiveDamage} (¼ CC)` : effectiveDamage,
-              life: 28,
-              color: isTargetCC ? '#f59e0b' : proj.color,
+              y: target.y - 14,
+              damage: isTargetInDeadTime
+                ? `${effectiveDamage} (💥 CRIT!)`
+                : isTargetCC
+                ? `${effectiveDamage} (¼ CC)`
+                : effectiveDamage,
+              life: 32,
+              color: isTargetInDeadTime ? '#facc15' : isTargetCC ? '#f59e0b' : proj.color,
             });
 
             // Impact particles
@@ -4482,6 +5317,11 @@ export const TwoPlayerBattleGame: React.FC = () => {
           ctx.textAlign = 'center';
           ctx.fillText('▲ JUMP ▲', plat.x + plat.width / 2, plat.y + 13);
         }
+      });
+
+      // Render Dropped Power-Ups (Boss Battles)
+      powerUpsRef.current.forEach((pup) => {
+        renderDroppedPowerUp(ctx, pup, Date.now());
       });
 
       // Render All Active Players with distinct styling & unique character gear
@@ -5116,6 +5956,81 @@ export const TwoPlayerBattleGame: React.FC = () => {
       {/* Main Game Interface based on state */}
       {gameState === 'playing' || gameState === 'round_over' || gameState === 'game_over' ? (
         <div className="flex flex-col gap-3">
+          {/* Top Boss Encounter Health Bar & 5-Second Dead Time Indicator */}
+          {bossLiveState && (gameMode === 'boss_solo' || gameMode === 'boss_coop' || bossLiveState.hp > 0) && (
+            <div
+              id="top-boss-healthbar"
+              className="p-3 sm:p-3.5 rounded-2xl bg-neutral-950/95 border-2 shadow-xl flex flex-col gap-2 relative overflow-hidden transition-all duration-200"
+              style={{
+                borderColor: bossLiveState.stunTimer > 0 ? '#facc15' : bossLiveState.secondaryColor || '#ef4444',
+                boxShadow: bossLiveState.stunTimer > 0 ? '0 0 25px rgba(250, 204, 21, 0.45)' : '0 0 15px rgba(0,0,0,0.8)',
+              }}
+            >
+              {/* Header Info */}
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className="w-7 h-7 rounded-lg flex items-center justify-center font-black text-xs text-white shadow-sm"
+                    style={{ backgroundColor: bossLiveState.secondaryColor }}
+                  >
+                    💀
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-black text-sm sm:text-base uppercase tracking-wider text-white">
+                        {bossLiveState.name}
+                      </span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider bg-neutral-800 text-neutral-300 border border-neutral-700">
+                        {bossLiveState.title}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Dead Time Status Pill */}
+                <div className="flex items-center gap-2">
+                  {bossLiveState.stunTimer > 0 ? (
+                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-amber-500/20 border border-amber-400 text-amber-300 text-xs font-black animate-pulse shadow-md">
+                      <span>⚠️ 5s DEAD TIME! EXHAUSTED:</span>
+                      <span className="font-mono text-amber-200">
+                        {(bossLiveState.stunTimer / 60).toFixed(1)}s
+                      </span>
+                      <span className="text-[10px] text-amber-400 font-bold underline">(+50% BONUS CRIT!)</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-neutral-900 border border-neutral-800 text-neutral-400 text-[11px] font-semibold">
+                      <span>Next 5s Dead Time:</span>
+                      <span className="font-bold text-white font-mono">{3 - (bossLiveState.comboCount || 0)}</span>
+                      <span>hits away</span>
+                    </div>
+                  )}
+
+                  {/* HP Value */}
+                  <div className="flex items-baseline gap-1 font-mono font-bold text-sm">
+                    <span className="text-white text-base font-black">{bossLiveState.hp}</span>
+                    <span className="text-neutral-400 text-xs">/ {bossLiveState.maxHp} HP</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="w-full h-3.5 sm:h-4 bg-neutral-900/90 rounded-full overflow-hidden p-0.5 border border-neutral-800/80 relative">
+                <div
+                  className="h-full rounded-full transition-all duration-100 relative overflow-hidden"
+                  style={{
+                    width: `${Math.max(0, Math.min(100, (bossLiveState.hp / bossLiveState.maxHp) * 100))}%`,
+                    background:
+                      bossLiveState.stunTimer > 0
+                        ? 'linear-gradient(90deg, #eab308, #facc15, #fef08a)'
+                        : `linear-gradient(90deg, ${bossLiveState.color}, ${bossLiveState.secondaryColor})`,
+                  }}
+                >
+                  <div className="absolute inset-0 bg-white/20 animate-pulse" />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Top In-Game Scoreboard for 2, 3, or 4 Players */}
           <div className="flex flex-wrap items-center justify-between gap-2 px-3 sm:px-4 py-2 bg-neutral-900 text-white rounded-xl border border-neutral-800">
             {/* Player badges for all active players */}
