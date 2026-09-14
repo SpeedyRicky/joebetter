@@ -18,6 +18,9 @@ import {
   Share2,
   X,
   Eye,
+  Users,
+  Bot,
+  Repeat,
 } from 'lucide-react';
 import { BotCharacter, BOT_PRESETS, getBotForElo, PlayerColor, CapturedPieces } from './chessTypes';
 import { getBotMove, getBotCommentary, getHintForPlayer, evaluateBoard, clearTranspositionTable } from './chessEngine';
@@ -37,6 +40,10 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
   const [fen, setFen] = useState(chess.fen());
   const [playerColor, setPlayerColor] = useState<PlayerColor>('w');
   const [boardFlipped, setBoardFlipped] = useState(false);
+
+  // Game mode: vs Gret Bot or 2-Player Local Pass & Play
+  const [gameMode, setGameMode] = useState<'bot' | '2player'>('bot');
+  const [autoRotateBoard, setAutoRotateBoard] = useState(false);
 
   // Selected bot & Elo (default Martin Joe - 250 or custom 100 to 3000)
   const [selectedElo, setSelectedElo] = useState<number>(1000);
@@ -62,7 +69,7 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
   const [isEloDrawerOpen, setIsEloDrawerOpen] = useState(false);
   const [isGameOverModalOpen, setIsGameOverModalOpen] = useState(false);
   const [gameOverResult, setGameOverResult] = useState<{
-    winner: 'player' | 'bot' | 'draw' | null;
+    winner: 'player' | 'bot' | 'player1' | 'player2' | 'draw' | null;
     reason: string;
   } | null>(null);
 
@@ -94,21 +101,35 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
     }
   }, [historyMoves]);
 
-  // Update speech when changing bot
+  // Update speech when changing bot or mode
   useEffect(() => {
-    setBotSpeech(`Hi! I'm ${currentBot.name} (Elo ${currentBot.elo}). ${currentBot.quote}`);
-  }, [currentBot]);
+    if (gameMode === '2player') {
+      setBotSpeech("2-Player Local Mode: White moves first. Take turns playing on the board!");
+    } else {
+      setBotSpeech(`Hi! I'm ${currentBot.name} (Elo ${currentBot.elo}). ${currentBot.quote}`);
+    }
+  }, [currentBot, gameMode]);
 
   // Check game over
   const checkGameOver = useCallback(() => {
     if (chess.isGameOver()) {
       chessSounds.playGameOver();
       if (chess.isCheckmate()) {
-        const winner = chess.turn() === playerColor ? 'bot' : 'player';
-        setGameOverResult({
-          winner,
-          reason: `Checkmate! ${winner === 'player' ? 'You won!' : `${currentBot.name} won!`}`,
-        });
+        if (gameMode === '2player') {
+          const winnerColor = chess.turn() === 'w' ? 'b' : 'w';
+          const winnerKey = winnerColor === 'w' ? 'player1' : 'player2';
+          const winnerLabel = winnerColor === 'w' ? 'Player 1 (White)' : 'Player 2 (Black)';
+          setGameOverResult({
+            winner: winnerKey,
+            reason: `Checkmate! ${winnerLabel} won the match!`,
+          });
+        } else {
+          const winner = chess.turn() === playerColor ? 'bot' : 'player';
+          setGameOverResult({
+            winner,
+            reason: `Checkmate! ${winner === 'player' ? 'You won!' : `${currentBot.name} won!`}`,
+          });
+        }
         setIsGameOverModalOpen(true);
       } else if (chess.isStalemate()) {
         setGameOverResult({ winner: 'draw', reason: 'Stalemate! Draw.' });
@@ -126,11 +147,11 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
       return true;
     }
     return false;
-  }, [chess, playerColor, currentBot.name]);
+  }, [chess, playerColor, currentBot.name, gameMode]);
 
   // Execute bot move
   const triggerBotMove = useCallback(async () => {
-    if (chess.isGameOver()) return;
+    if (gameMode === '2player' || chess.isGameOver()) return;
     setIsBotThinking(true);
 
     // Simulate realistic bot calculation delay (250ms - 800ms)
@@ -176,21 +197,23 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
     } finally {
       setIsBotThinking(false);
     }
-  }, [chess, selectedElo, currentBot, checkGameOver]);
+  }, [chess, selectedElo, currentBot, checkGameOver, gameMode, playerColor]);
 
-  // If player chose Black, bot moves first
+  // If player chose Black, bot moves first in bot mode
   useEffect(() => {
-    if (playerColor === 'b' && chess.turn() === 'w' && historyMoves.length === 0) {
+    if (gameMode === 'bot' && playerColor === 'b' && chess.turn() === 'w' && historyMoves.length === 0) {
       triggerBotMove();
     }
-  }, [playerColor, chess, historyMoves.length, triggerBotMove]);
+  }, [gameMode, playerColor, chess, historyMoves.length, triggerBotMove]);
 
   // Handle Square Selection & Move
   const handleSquareClick = (square: Square) => {
-    if (isBotThinking || gameOverResult) return;
+    if (gameOverResult || (gameMode === 'bot' && isBotThinking)) return;
 
     const currentTurn = chess.turn();
-    if (currentTurn !== playerColor) return;
+    const effectiveActiveColor = gameMode === '2player' ? currentTurn : playerColor;
+
+    if (gameMode === 'bot' && currentTurn !== playerColor) return;
 
     // 1. If clicking a possible move destination
     const existingMove = possibleMoves.find((m) => m.to === square);
@@ -210,9 +233,9 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
       return;
     }
 
-    // 2. Select piece if it belongs to current player
+    // 2. Select piece if it belongs to current active player
     const piece = chess.get(square);
-    if (piece && piece.color === playerColor) {
+    if (piece && piece.color === effectiveActiveColor) {
       setSelectedSquare(square);
       const legal = chess.moves({ square, verbose: true });
       setPossibleMoves(legal);
@@ -253,8 +276,21 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
           chessSounds.playMove();
         }
 
+        if (gameMode === '2player') {
+          const nextPlayer = chess.turn() === 'w' ? 'Player 1 (White)' : 'Player 2 (Black)';
+          if (chess.isCheck()) {
+            setBotSpeech(`CHECK! ${nextPlayer} is under attack!`);
+          } else {
+            setBotSpeech(`${nextPlayer}'s turn to move.`);
+          }
+
+          if (autoRotateBoard) {
+            setBoardFlipped(chess.turn() === 'b');
+          }
+        }
+
         const isOver = checkGameOver();
-        if (!isOver) {
+        if (!isOver && gameMode === 'bot') {
           // Trigger bot's turn
           setTimeout(() => {
             triggerBotMove();
@@ -292,22 +328,32 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
 
     const activeColor = newColor || playerColor;
     setPlayerColor(activeColor);
-    setBoardFlipped(activeColor === 'b');
-    setBotSpeech(`New game started! I'm ${currentBot.name} (Elo ${currentBot.elo}). Good luck!`);
-
-    if (activeColor === 'b') {
-      setTimeout(() => {
-        triggerBotMove();
-      }, 400);
+    setBoardFlipped(gameMode === '2player' ? false : activeColor === 'b');
+    if (gameMode === '2player') {
+      setBotSpeech("New 2-Player match! White (Player 1) moves first. Good luck!");
+    } else {
+      setBotSpeech(`New game started! I'm ${currentBot.name} (Elo ${currentBot.elo}). Good luck!`);
+      if (activeColor === 'b') {
+        setTimeout(() => {
+          triggerBotMove();
+        }, 400);
+      }
     }
   };
 
-  // Undo Move (undoes both bot move and player move)
+  // Undo Move (in 2P mode undoes 1 move; in bot mode undoes bot + player)
   const handleUndoMove = () => {
-    if (isBotThinking || historyMoves.length === 0) return;
-    chess.undo(); // Undo bot move
-    if (chess.turn() !== playerColor) {
-      chess.undo(); // Undo player move
+    if ((gameMode === 'bot' && isBotThinking) || historyMoves.length === 0) return;
+    if (gameMode === '2player') {
+      chess.undo();
+      if (autoRotateBoard) {
+        setBoardFlipped(chess.turn() === 'b');
+      }
+    } else {
+      chess.undo(); // Undo bot move
+      if (chess.turn() !== playerColor) {
+        chess.undo(); // Undo player move
+      }
     }
     setFen(chess.fen());
     setTick((t) => t + 1);
@@ -324,7 +370,7 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
 
   // Hint
   const handleAskHint = () => {
-    if (isBotThinking || gameOverResult || chess.turn() !== playerColor) return;
+    if (gameOverResult || (gameMode === 'bot' && (isBotThinking || chess.turn() !== playerColor))) return;
     const hint = getHintForPlayer(chess);
     if (hint) {
       setHintMove({
@@ -332,7 +378,10 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
         to: hint.move.to as Square,
         advice: hint.advice,
       });
-      setBotSpeech(`💡 Hint: ${hint.advice}`);
+      const activeName = gameMode === '2player'
+        ? (chess.turn() === 'w' ? 'Player 1' : 'Player 2')
+        : 'Player';
+      setBotSpeech(`💡 Hint for ${activeName}: ${hint.advice}`);
       chessSounds.playCheck();
     }
   };
@@ -341,12 +390,23 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
   const handleResign = () => {
     if (gameOverResult) return;
     chessSounds.playGameOver();
-    setGameOverResult({
-      winner: 'bot',
-      reason: `You resigned. ${currentBot.name} wins!`,
-    });
+    if (gameMode === '2player') {
+      const resigning = chess.turn() === 'w' ? 'Player 1 (White)' : 'Player 2 (Black)';
+      const winner = chess.turn() === 'w' ? 'Player 2 (Black)' : 'Player 1 (White)';
+      const winnerKey = chess.turn() === 'w' ? 'player2' : 'player1';
+      setGameOverResult({
+        winner: winnerKey,
+        reason: `${resigning} resigned. ${winner} wins!`,
+      });
+      setBotSpeech(`${resigning} resigned. ${winner} claims victory!`);
+    } else {
+      setGameOverResult({
+        winner: 'bot',
+        reason: `You resigned. ${currentBot.name} wins!`,
+      });
+      setBotSpeech("Good game! Resignation accepted. Ready for a rematch?");
+    }
     setIsGameOverModalOpen(true);
-    setBotSpeech("Good game! Resignation accepted. Ready for a rematch?");
   };
 
   // Calculate Captured pieces
@@ -441,25 +501,71 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
             <JoeLogo size="xs" />
             <div className="flex items-baseline gap-1.5">
               <h1 className="text-sm font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
-                Gret Chess Bot
+                Gret Chess
               </h1>
               <span className="text-xs text-neutral-500 font-medium">
-                vs {currentBot.name} ({currentBot.elo} Elo)
+                {gameMode === '2player' ? '2-Player Local Pass & Play' : `vs ${currentBot.name} (${currentBot.elo} Elo)`}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Right Tools */}
+        {/* Mode Selector & Right Tools */}
         <div className="flex items-center gap-2">
-          {/* Elo Selector Quick Button */}
-          <button
-            onClick={() => setIsEloDrawerOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 text-xs font-semibold shadow-xs hover:opacity-90 transition cursor-pointer"
-          >
-            <Sliders className="w-3.5 h-3.5" />
-            <span>Change Bot (Elo {currentBot.elo})</span>
-          </button>
+          {/* Mode Switcher */}
+          <div className="flex items-center gap-1 bg-neutral-100 dark:bg-neutral-800 p-1 rounded-xl text-xs font-medium">
+            <button
+              onClick={() => {
+                setGameMode('bot');
+                handleStartNewGame('w');
+              }}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition cursor-pointer ${
+                gameMode === 'bot'
+                  ? 'bg-white dark:bg-neutral-900 text-neutral-950 dark:text-white font-bold shadow-xs'
+                  : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+              }`}
+            >
+              <Bot className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">VS Bot</span>
+            </button>
+            <button
+              onClick={() => {
+                setGameMode('2player');
+                handleStartNewGame('w');
+              }}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition cursor-pointer ${
+                gameMode === '2player'
+                  ? 'bg-white dark:bg-neutral-900 text-neutral-950 dark:text-white font-bold shadow-xs'
+                  : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>2 Players</span>
+            </button>
+          </div>
+
+          {gameMode === 'bot' ? (
+            <button
+              onClick={() => setIsEloDrawerOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 text-xs font-semibold shadow-xs hover:opacity-90 transition cursor-pointer"
+            >
+              <Sliders className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Change Bot ({currentBot.elo})</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setAutoRotateBoard(!autoRotateBoard)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition cursor-pointer ${
+                autoRotateBoard
+                  ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
+                  : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300'
+              }`}
+              title="Auto-rotate board on turn change"
+            >
+              <Repeat className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Auto-Flip: {autoRotateBoard ? 'ON' : 'OFF'}</span>
+            </button>
+          )}
 
           <button
             onClick={() => setSoundEnabled(!soundEnabled)}
@@ -476,15 +582,21 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
         {/* Left / Center: Board and Bot/Player Badges */}
         <div className="flex-1 flex flex-col items-center justify-center p-2 sm:p-4 overflow-y-auto">
           <div className="w-full max-w-[560px] flex flex-col gap-2">
-            {/* Top: Bot Profile & Speech Bubble */}
+            {/* Top: Bot Profile OR Player 2 (Black) Profile & Speech Bubble */}
             <div className="flex items-start gap-3 p-3 rounded-xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-xs">
               <div className="relative">
-                <div
-                  className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl font-bold ${currentBot.avatarColor} border border-black/10 dark:border-white/10 shrink-0`}
-                >
-                  {currentBot.avatar}
-                </div>
-                {isBotThinking && (
+                {gameMode === '2player' ? (
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center text-2xl font-bold bg-neutral-900 text-white border border-neutral-700 shrink-0">
+                    ♟
+                  </div>
+                ) : (
+                  <div
+                    className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl font-bold ${currentBot.avatarColor} border border-black/10 dark:border-white/10 shrink-0`}
+                  >
+                    {currentBot.avatar}
+                  </div>
+                )}
+                {isBotThinking && gameMode === 'bot' && (
                   <span className="absolute -bottom-1 -right-1 flex h-3.5 w-3.5">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-amber-500" />
@@ -496,29 +608,39 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-neutral-900 dark:text-neutral-100">
-                      {currentBot.name}
+                      {gameMode === '2player' ? 'Player 2 (Black)' : currentBot.name}
                     </span>
-                    <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">
-                      {currentBot.elo} Elo
-                    </span>
-                    {currentBot.title && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-500 text-white">
-                        {currentBot.title}
-                      </span>
+                    {gameMode === '2player' ? (
+                      chess.turn() === 'b' && !gameOverResult ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 animate-pulse">
+                          Turn to Move
+                        </span>
+                      ) : (
+                        <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-neutral-100 dark:bg-neutral-800 text-neutral-500">
+                          Waiting...
+                        </span>
+                      )
+                    ) : (
+                      <>
+                        <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">
+                          {currentBot.elo} Elo
+                        </span>
+                        {currentBot.title && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-500 text-white">
+                            {currentBot.title}
+                          </span>
+                        )}
+                      </>
                     )}
                   </div>
 
-                  {/* Captured pieces by Bot */}
+                  {/* Captured pieces by Top Player / Bot */}
                   <div className="flex items-center gap-1 text-xs text-neutral-500">
-                    {playerColor === 'w' ? (
-                      <CapturedPiecesRow pieces={capturedPieces.whiteCapturedByBlack} />
-                    ) : (
-                      <CapturedPiecesRow pieces={capturedPieces.blackCapturedByWhite} />
-                    )}
+                    <CapturedPiecesRow pieces={capturedPieces.whiteCapturedByBlack} />
                   </div>
                 </div>
 
-                {/* Speech Bubble */}
+                {/* Speech / Status Bubble */}
                 <div className="mt-1.5 px-3 py-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800/80 text-neutral-800 dark:text-neutral-200 text-xs italic flex items-center gap-2">
                   <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                   <span className="truncate">{botSpeech}</span>
@@ -653,26 +775,22 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
             {/* Bottom: Player Profile Card */}
             <div className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-xs">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 flex items-center justify-center font-bold text-sm">
-                  You
+                <div className="w-10 h-10 rounded-xl bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 flex items-center justify-center font-bold text-base">
+                  {gameMode === '2player' ? '♙' : 'You'}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-neutral-900 dark:text-neutral-100">
-                      You ({playerColor === 'w' ? 'White' : 'Black'})
+                      {gameMode === '2player' ? 'Player 1 (White)' : `You (${playerColor === 'w' ? 'White' : 'Black'})`}
                     </span>
-                    {chess.turn() === playerColor && !gameOverResult && (
+                    {(gameMode === '2player' ? chess.turn() === 'w' : chess.turn() === playerColor) && !gameOverResult && (
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 animate-pulse">
                         Your Turn
                       </span>
                     )}
                   </div>
                   <div className="text-xs text-neutral-500">
-                    {playerColor === 'w' ? (
-                      <CapturedPiecesRow pieces={capturedPieces.blackCapturedByWhite} />
-                    ) : (
-                      <CapturedPiecesRow pieces={capturedPieces.whiteCapturedByBlack} />
-                    )}
+                    <CapturedPiecesRow pieces={capturedPieces.blackCapturedByWhite} />
                   </div>
                 </div>
               </div>
@@ -681,8 +799,8 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
               <div className="flex items-center gap-1">
                 <button
                   onClick={handleAskHint}
-                  title="Ask Craig for a Hint"
-                  disabled={chess.turn() !== playerColor || !!gameOverResult}
+                  title="Get Move Hint"
+                  disabled={gameOverResult !== null}
                   className="px-2.5 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-xs font-semibold text-neutral-700 dark:text-neutral-300 disabled:opacity-40 transition flex items-center gap-1.5 cursor-pointer"
                 >
                   <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
@@ -692,7 +810,7 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
                 <button
                   onClick={handleUndoMove}
                   title="Undo Move"
-                  disabled={historyMoves.length === 0 || isBotThinking || !!gameOverResult}
+                  disabled={historyMoves.length === 0 || (gameMode === 'bot' && isBotThinking) || !!gameOverResult}
                   className="p-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300 disabled:opacity-40 transition cursor-pointer"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
@@ -700,7 +818,7 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
 
                 <button
                   onClick={() => setBoardFlipped(!boardFlipped)}
-                  title="Flip Board"
+                  title="Flip Board Orientation"
                   className="p-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300 transition cursor-pointer"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
@@ -783,88 +901,157 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
             </div>
           )}
 
-          {/* Color Chooser */}
-          <div className="p-3 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
-            <span className="text-xs font-semibold text-neutral-700 dark:text-neutral-300">
-              Play As:
+          {/* Game Mode Picker */}
+          <div className="p-3 border-b border-neutral-200 dark:border-neutral-800 flex flex-col gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+              Game Mode
             </span>
-            <div className="flex gap-1">
+            <div className="grid grid-cols-2 gap-2">
               <button
-                onClick={() => handleStartNewGame('w')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                  playerColor === 'w'
-                    ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900'
-                    : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400'
+                onClick={() => {
+                  setGameMode('bot');
+                  handleStartNewGame('w');
+                }}
+                className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-semibold gap-1.5 transition cursor-pointer ${
+                  gameMode === 'bot'
+                    ? 'border-neutral-900 dark:border-white bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 shadow-xs'
+                    : 'border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-850 text-neutral-700 dark:text-neutral-300 hover:border-neutral-300'
                 }`}
               >
-                ⚪ White
+                <Bot className="w-4 h-4" />
+                <span>VS Bot</span>
               </button>
               <button
-                onClick={() => handleStartNewGame('b')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                  playerColor === 'b'
-                    ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900'
-                    : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400'
+                onClick={() => {
+                  setGameMode('2player');
+                  handleStartNewGame('w');
+                }}
+                className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-semibold gap-1.5 transition cursor-pointer ${
+                  gameMode === '2player'
+                    ? 'border-neutral-900 dark:border-white bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 shadow-xs'
+                    : 'border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-850 text-neutral-700 dark:text-neutral-300 hover:border-neutral-300'
                 }`}
               >
-                ⚫ Black
+                <Users className="w-4 h-4" />
+                <span>2 Players</span>
               </button>
             </div>
           </div>
 
-          {/* Elo Selector Slider (100 to 3000) */}
-          <div className="p-4 border-b border-neutral-200 dark:border-neutral-800 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-xs font-bold text-neutral-900 dark:text-neutral-100">
-                  Bot Strength (Elo)
+          {gameMode === 'bot' ? (
+            <>
+              {/* Color Chooser */}
+              <div className="p-3 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
+                <span className="text-xs font-semibold text-neutral-700 dark:text-neutral-300">
+                  Play As:
                 </span>
-                <p className="text-[11px] text-neutral-500">Pick from 100 to 3000</p>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => handleStartNewGame('w')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                      playerColor === 'w'
+                        ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900'
+                        : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400'
+                    }`}
+                  >
+                    ⚪ White
+                  </button>
+                  <button
+                    onClick={() => handleStartNewGame('b')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                      playerColor === 'b'
+                        ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900'
+                        : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400'
+                    }`}
+                  >
+                    ⚫ Black
+                  </button>
+                </div>
               </div>
-              <span className="text-sm font-extrabold px-2.5 py-1 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
-                {selectedElo} Elo
-              </span>
-            </div>
 
-            {/* Slider */}
-            <input
-              type="range"
-              min="100"
-              max="3000"
-              step="50"
-              value={selectedElo}
-              onChange={(e) => setSelectedElo(Number(e.target.value))}
-              className="w-full accent-neutral-900 dark:accent-neutral-100 cursor-pointer"
-            />
-
-            {/* Quick Bot Presets (Chess.com bot tiles) */}
-            <div className="grid grid-cols-2 gap-1.5 pt-1">
-              {[
-                { name: 'Martin', elo: 250, icon: '🧔' },
-                { name: 'Nelson', elo: 1200, icon: '👨‍🦱' },
-                { name: 'Antonio', elo: 1600, icon: '👨‍🔬' },
-                { name: 'Elena', elo: 2200, icon: '👑' },
-                { name: 'Magnus', elo: 2850, icon: '⚡' },
-                { name: 'Engine 3000', elo: 3000, icon: '🤖' },
-              ].map((preset) => (
-                <button
-                  key={preset.elo}
-                  onClick={() => setSelectedElo(preset.elo)}
-                  className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium flex items-center justify-between transition cursor-pointer ${
-                    selectedElo === preset.elo
-                      ? 'border-neutral-900 dark:border-neutral-100 bg-neutral-900/5 dark:bg-neutral-100/10 font-bold text-neutral-900 dark:text-neutral-100'
-                      : 'border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 hover:border-neutral-400'
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5">
-                    <span>{preset.icon}</span>
-                    <span className="truncate">{preset.name}</span>
+              {/* Elo Selector Slider (100 to 3000) */}
+              <div className="p-4 border-b border-neutral-200 dark:border-neutral-800 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold text-neutral-900 dark:text-neutral-100">
+                      Bot Strength (Elo)
+                    </span>
+                    <p className="text-[11px] text-neutral-500">Pick from 100 to 3000</p>
+                  </div>
+                  <span className="text-sm font-extrabold px-2.5 py-1 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                    {selectedElo} Elo
                   </span>
-                  <span className="text-[10px] opacity-75">{preset.elo}</span>
-                </button>
-              ))}
+                </div>
+
+                {/* Slider */}
+                <input
+                  type="range"
+                  min="100"
+                  max="3000"
+                  step="50"
+                  value={selectedElo}
+                  onChange={(e) => setSelectedElo(Number(e.target.value))}
+                  className="w-full accent-neutral-900 dark:accent-neutral-100 cursor-pointer"
+                />
+
+                {/* Quick Bot Presets (Chess.com bot tiles) */}
+                <div className="grid grid-cols-2 gap-1.5 pt-1">
+                  {[
+                    { name: 'Martin', elo: 250, icon: '🧔' },
+                    { name: 'Nelson', elo: 1200, icon: '👨‍🦱' },
+                    { name: 'Antonio', elo: 1600, icon: '👨‍🔬' },
+                    { name: 'Elena', elo: 2200, icon: '👑' },
+                    { name: 'Magnus', elo: 2850, icon: '⚡' },
+                    { name: 'Engine 3000', elo: 3000, icon: '🤖' },
+                  ].map((preset) => (
+                    <button
+                      key={preset.elo}
+                      onClick={() => setSelectedElo(preset.elo)}
+                      className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium flex items-center justify-between transition cursor-pointer ${
+                        selectedElo === preset.elo
+                          ? 'border-neutral-900 dark:border-neutral-100 bg-neutral-900/5 dark:bg-neutral-100/10 font-bold text-neutral-900 dark:text-neutral-100'
+                          : 'border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 hover:border-neutral-400'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <span>{preset.icon}</span>
+                        <span className="truncate">{preset.name}</span>
+                      </span>
+                      <span className="text-[10px] opacity-75">{preset.elo}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="p-4 border-b border-neutral-200 dark:border-neutral-800 flex flex-col gap-3 bg-neutral-50 dark:bg-neutral-850/50">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200">
+                  Pass & Play Settings
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                  Local 2P
+                </span>
+              </div>
+              <p className="text-xs text-neutral-500 leading-relaxed">
+                Two players take turns moving on this device. Player 1 plays White and Player 2 plays Black.
+              </p>
+              <button
+                onClick={() => setAutoRotateBoard(!autoRotateBoard)}
+                className={`w-full py-2 px-3 rounded-lg border text-xs font-semibold flex items-center justify-between transition cursor-pointer ${
+                  autoRotateBoard
+                    ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
+                    : 'border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Repeat className="w-3.5 h-3.5" />
+                  <span>Auto-Flip Board on Turn</span>
+                </div>
+                <span className="font-bold">{autoRotateBoard ? 'ON' : 'OFF'}</span>
+              </button>
             </div>
-          </div>
+          )}
 
           {/* Move History Table */}
           <div className="flex-1 flex flex-col min-h-0">
@@ -930,23 +1117,29 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
 
             <div
               className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl ${
-                gameOverResult.winner === 'player'
+                gameOverResult.winner === 'player' || gameOverResult.winner === 'player1' || gameOverResult.winner === 'player2'
                   ? 'bg-amber-500/20 text-amber-500'
                   : gameOverResult.winner === 'bot'
                   ? 'bg-rose-500/20 text-rose-500'
                   : 'bg-blue-500/20 text-blue-500'
               }`}
             >
-              {gameOverResult.winner === 'player' ? (
+              {gameOverResult.winner === 'player' || gameOverResult.winner === 'player1' || gameOverResult.winner === 'player2' ? (
                 <Trophy className="w-8 h-8" />
-              ) : (
+              ) : gameOverResult.winner === 'bot' ? (
                 currentBot.avatar
+              ) : (
+                '🤝'
               )}
             </div>
 
             <div>
               <h3 className="text-lg font-bold text-neutral-900 dark:text-neutral-100">
-                {gameOverResult.winner === 'player'
+                {gameOverResult.winner === 'player1'
+                  ? '🎉 Player 1 (White) Wins!'
+                  : gameOverResult.winner === 'player2'
+                  ? '🎉 Player 2 (Black) Wins!'
+                  : gameOverResult.winner === 'player'
                   ? 'Victory!'
                   : gameOverResult.winner === 'bot'
                   ? `${currentBot.name} Won`
@@ -967,15 +1160,27 @@ export const JoeChessArena: React.FC<JoeChessArenaProps> = ({ onBackToChat }) =>
                 >
                   Play Rematch
                 </button>
-                <button
-                  onClick={() => {
-                    setIsGameOverModalOpen(false);
-                    setIsEloDrawerOpen(true);
-                  }}
-                  className="py-2.5 px-4 rounded-xl border border-neutral-300 dark:border-neutral-700 text-xs font-bold text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
-                >
-                  Change Bot
-                </button>
+                {gameMode === 'bot' ? (
+                  <button
+                    onClick={() => {
+                      setIsGameOverModalOpen(false);
+                      setIsEloDrawerOpen(true);
+                    }}
+                    className="py-2.5 px-4 rounded-xl border border-neutral-300 dark:border-neutral-700 text-xs font-bold text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+                  >
+                    Change Bot
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setBoardFlipped(!boardFlipped);
+                      setIsGameOverModalOpen(false);
+                    }}
+                    className="py-2.5 px-4 rounded-xl border border-neutral-300 dark:border-neutral-700 text-xs font-bold text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+                  >
+                    Flip Sides
+                  </button>
+                )}
               </div>
 
               {/* Dedicated Exit to Board button */}

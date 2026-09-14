@@ -8,6 +8,10 @@ import {
   AlertCircle,
   HelpCircle,
   Zap,
+  Users,
+  Bot,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { SoundManager } from '../chess/chessSounds';
 
@@ -38,6 +42,8 @@ export interface UnoCard {
 const soundManager = new SoundManager();
 
 export const UnoGame: React.FC = () => {
+  const [gameMode, setGameMode] = useState<'ai' | '2player'>('ai');
+  const [player2HideCards, setPlayer2HideCards] = useState<boolean>(false);
   const [deck, setDeck] = useState<UnoCard[]>([]);
   const [discardPile, setDiscardPile] = useState<UnoCard[]>([]);
   const [playerHand, setPlayerHand] = useState<UnoCard[]>([]);
@@ -51,7 +57,7 @@ export const UnoGame: React.FC = () => {
   const [pendingCard, setPendingCard] = useState<UnoCard | null>(null);
   const [isAiThinking, setIsAiThinking] = useState<boolean>(false);
   const [commentary, setCommentary] = useState<string>(
-    "Welcome to Uno with Gret! Match the color or number on the discard pile."
+    "Welcome to Uno! Match the color or number on the discard pile."
   );
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
 
@@ -96,7 +102,8 @@ export const UnoGame: React.FC = () => {
     return cards;
   };
 
-  const startNewGame = () => {
+  const startNewGame = (overrideMode?: 'ai' | '2player') => {
+    const activeMode = overrideMode || gameMode;
     const fullDeck = createDeck();
 
     // Deal 7 cards each
@@ -131,7 +138,11 @@ export const UnoGame: React.FC = () => {
     setShowColorPicker(false);
     setPendingCard(null);
     setIsAiThinking(false);
-    setCommentary("Game on! Match the discard pile by color or number. Have fun!");
+    if (activeMode === '2player') {
+      setCommentary("2-Player Uno started! Player 1 goes first. Match color or number!");
+    } else {
+      setCommentary("Game on! Match the discard pile by color or number. Have fun!");
+    }
   };
 
   const topDiscard = discardPile[discardPile.length - 1];
@@ -172,9 +183,23 @@ export const UnoGame: React.FC = () => {
     return { drawn, remainingDeck: d, remainingDiscard: disc };
   };
 
-  // Player plays a card
+  // Player 1 plays a card
   const handlePlayCard = (card: UnoCard) => {
-    if (turn !== 'player' || winner || isAiThinking) return;
+    if (turn !== 'player' || winner || (gameMode === 'ai' && isAiThinking)) return;
+    if (!isCardPlayable(card)) return;
+
+    if (card.color === 'wild') {
+      setPendingCard(card);
+      setShowColorPicker(true);
+      return;
+    }
+
+    executePlayCard(card, card.color);
+  };
+
+  // Player 2 plays a card (2-Player local mode)
+  const handlePlayer2PlayCard = (card: UnoCard) => {
+    if (gameMode !== '2player' || turn !== 'gret' || winner) return;
     if (!isCardPlayable(card)) return;
 
     if (card.color === 'wild') {
@@ -200,13 +225,13 @@ export const UnoGame: React.FC = () => {
 
       if (newHand.length === 1) {
         setPlayerCalledUno(true);
-        setCommentary("UNO! You have only 1 card remaining!");
+        setCommentary(gameMode === '2player' ? "UNO! Player 1 has only 1 card remaining!" : "UNO! You have only 1 card remaining!");
         soundManager.playCheck();
       }
 
       if (newHand.length === 0) {
         setWinner('player');
-        setCommentary("UNBELIEVABLE! You won Uno against Gret!");
+        setCommentary(gameMode === '2player' ? "🎉 Player 1 won the Uno match!" : "UNBELIEVABLE! You won Uno against Gret!");
         soundManager.playVictory();
         return;
       }
@@ -214,20 +239,20 @@ export const UnoGame: React.FC = () => {
       // Handle card effects
       handleActionCardEffects(card, 'player', newDiscard);
     } else {
-      // Gret played
+      // Gret / Player 2 played
       const newHand = gretHand.filter((c) => c.id !== card.id);
       setGretHand(newHand);
 
       if (newHand.length === 1) {
         setGretCalledUno(true);
-        setCommentary("Gret shouted: UNO! Watch out, only 1 card left!");
+        setCommentary(gameMode === '2player' ? "UNO! Player 2 has only 1 card left!" : "Gret shouted: UNO! Watch out, only 1 card left!");
         soundManager.playCheck();
       }
 
       if (newHand.length === 0) {
         setWinner('gret');
-        setCommentary("Gret won this round of Uno! GG!");
-        soundManager.playLoss();
+        setCommentary(gameMode === '2player' ? "🎉 Player 2 won the Uno match!" : "Gret won this round of Uno! GG!");
+        soundManager.playVictory();
         return;
       }
 
@@ -245,27 +270,43 @@ export const UnoGame: React.FC = () => {
 
     if (card.value === 'skip') {
       soundManager.playCheck();
-      setCommentary(
-        isPlayer
-          ? "You played a Skip! Gret loses a turn!"
-          : "Gret skipped your turn! Gret goes again."
-      );
-      // Turn stays with actor
-      if (!isPlayer) {
-        // Trigger another AI turn
-        setTurn('gret');
+      if (gameMode === '2player') {
+        setCommentary(
+          isPlayer
+            ? "Player 1 played Skip! Player 2 loses their turn, Player 1 goes again!"
+            : "Player 2 played Skip! Player 1 loses their turn, Player 2 goes again!"
+        );
+        // In 2-player, turn stays with the actor
+        setTurn(actor);
+      } else {
+        setCommentary(
+          isPlayer
+            ? "You played a Skip! Gret loses a turn!"
+            : "Gret skipped your turn! Gret goes again."
+        );
+        if (!isPlayer) {
+          setTurn('gret');
+        }
       }
       return;
     }
 
     if (card.value === 'reverse') {
       soundManager.playCheck();
-      setCommentary(
-        isPlayer
-          ? "Reverse card played! Turn bounces back to you in 2-player!"
-          : "Gret played Reverse! Turn bounces back to Gret."
-      );
-      // In 2-player Uno, reverse acts as a skip
+      if (gameMode === '2player') {
+        setCommentary(
+          isPlayer
+            ? "Player 1 played Reverse! In 2-Player, turn bounces back to Player 1!"
+            : "Player 2 played Reverse! In 2-Player, turn bounces back to Player 2!"
+        );
+        setTurn(actor);
+      } else {
+        setCommentary(
+          isPlayer
+            ? "Reverse card played! Turn bounces back to you in 2-player!"
+            : "Gret played Reverse! Turn bounces back to Gret."
+        );
+      }
       return;
     }
 
@@ -281,12 +322,22 @@ export const UnoGame: React.FC = () => {
 
       if (isPlayer) {
         setGretHand((prev) => [...prev, ...drawn]);
-        setCommentary("Draw Two! Gret was forced to draw 2 cards and skips a turn!");
-        // Player goes again
+        setCommentary(
+          gameMode === '2player'
+            ? "Draw Two! Player 2 draws 2 cards and skips a turn!"
+            : "Draw Two! Gret was forced to draw 2 cards and skips a turn!"
+        );
+        // Player 1 goes again
+        setTurn('player');
       } else {
         setPlayerHand((prev) => [...prev, ...drawn]);
-        setCommentary("Ouch! Gret hit you with a Draw Two! You draw 2 cards and skip.");
-        // Gret goes again
+        setCommentary(
+          gameMode === '2player'
+            ? "Draw Two! Player 1 draws 2 cards and skips a turn!"
+            : "Ouch! Gret hit you with a Draw Two! You draw 2 cards and skip."
+        );
+        // Player 2 / Gret goes again
+        setTurn('gret');
       }
       return;
     }
@@ -303,23 +354,37 @@ export const UnoGame: React.FC = () => {
 
       if (isPlayer) {
         setGretHand((prev) => [...prev, ...drawn]);
-        setCommentary("WILD DRAW 4! Gret drew 4 cards and skipped!");
-        // Player goes again
+        setCommentary(
+          gameMode === '2player'
+            ? "WILD DRAW 4! Player 2 draws 4 cards and skips!"
+            : "WILD DRAW 4! Gret drew 4 cards and skipped!"
+        );
+        // Player 1 goes again
+        setTurn('player');
       } else {
         setPlayerHand((prev) => [...prev, ...drawn]);
-        setCommentary("WILD DRAW 4 from Gret! You drew 4 cards and lose your turn!");
-        // Gret goes again
+        setCommentary(
+          gameMode === '2player'
+            ? "WILD DRAW 4! Player 1 draws 4 cards and skips!"
+            : "WILD DRAW 4 from Gret! You drew 4 cards and lose your turn!"
+        );
+        // Player 2 / Gret goes again
+        setTurn('gret');
       }
       return;
     }
 
     // Standard card: toggle turn
     setTurn(nextTurn);
+    if (gameMode === '2player') {
+      const nextLabel = nextTurn === 'player' ? 'Player 1' : 'Player 2';
+      setCommentary(`${nextLabel}'s turn to play.`);
+    }
   };
 
-  // Player draws a card
+  // Player 1 draws a card
   const handlePlayerDraw = () => {
-    if (turn !== 'player' || winner || isAiThinking) return;
+    if (turn !== 'player' || winner || (gameMode === 'ai' && isAiThinking)) return;
 
     soundManager.playMove();
     const { drawn, remainingDeck, remainingDiscard } = drawCards(1, deck, discardPile);
@@ -332,10 +397,33 @@ export const UnoGame: React.FC = () => {
       setPlayerHand(newHand);
 
       if (isCardPlayable(drawnCard)) {
-        setCommentary(`You drew a playable card (${drawnCard.color} ${drawnCard.value})!`);
+        setCommentary(gameMode === '2player' ? `Player 1 drew a playable card (${drawnCard.color} ${drawnCard.value})!` : `You drew a playable card (${drawnCard.color} ${drawnCard.value})!`);
       } else {
-        setCommentary(`You drew a card. Passing turn to Gret.`);
+        setCommentary(gameMode === '2player' ? `Player 1 drew a card. Passing turn to Player 2.` : `You drew a card. Passing turn to Gret.`);
         setTurn('gret');
+      }
+    }
+  };
+
+  // Player 2 draws a card (2-player mode)
+  const handlePlayer2Draw = () => {
+    if (gameMode !== '2player' || turn !== 'gret' || winner) return;
+
+    soundManager.playMove();
+    const { drawn, remainingDeck, remainingDiscard } = drawCards(1, deck, discardPile);
+    setDeck(remainingDeck);
+    setDiscardPile(remainingDiscard);
+
+    if (drawn.length > 0) {
+      const drawnCard = drawn[0];
+      const newHand = [...gretHand, drawnCard];
+      setGretHand(newHand);
+
+      if (isCardPlayable(drawnCard)) {
+        setCommentary(`Player 2 drew a playable card (${drawnCard.color} ${drawnCard.value})!`);
+      } else {
+        setCommentary(`Player 2 drew a card. Passing turn to Player 1.`);
+        setTurn('player');
       }
     }
   };
@@ -348,9 +436,9 @@ export const UnoGame: React.FC = () => {
     setPendingCard(null);
   };
 
-  // Gret AI turn
+  // Gret AI turn (only in 'ai' mode)
   useEffect(() => {
-    if (turn === 'gret' && !winner) {
+    if (gameMode === 'ai' && turn === 'gret' && !winner) {
       setIsAiThinking(true);
       const timer = setTimeout(() => {
         executeGretAiTurn();
@@ -358,7 +446,7 @@ export const UnoGame: React.FC = () => {
       }, 750);
       return () => clearTimeout(timer);
     }
-  }, [turn, winner, discardPile, activeColor]);
+  }, [turn, winner, discardPile, activeColor, gameMode]);
 
   const executeGretAiTurn = () => {
     // Find all playable cards in Gret's hand
@@ -468,43 +556,177 @@ export const UnoGame: React.FC = () => {
 
   return (
     <div className="flex flex-col items-center justify-center p-3 sm:p-6 max-w-4xl mx-auto select-none">
-      {/* Top Banner: Gret Hand & Status */}
-      <div className="w-full mb-4 p-3 rounded-2xl bg-neutral-900 border border-neutral-800 flex items-center justify-between text-white shadow-md">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-white text-neutral-950 flex items-center justify-center font-bold text-sm shadow-xs">
-            G
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-xs text-neutral-100">Gret</span>
-              {gretHand.length === 1 && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-600 text-white font-bold animate-pulse">
-                  UNO!
-                </span>
-              )}
-            </div>
-            <div className="text-[11px] text-neutral-400">
-              {turn === 'gret' ? (
-                <span className="text-amber-400 animate-pulse font-medium">
-                  Thinking...
-                </span>
-              ) : (
-                `${gretHand.length} cards in hand`
-              )}
-            </div>
-          </div>
+      {/* Game Mode Selector & Header Bar */}
+      <div className="w-full mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
+        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-neutral-900 border border-neutral-800">
+          <button
+            onClick={() => {
+              setGameMode('ai');
+              startNewGame('ai');
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              gameMode === 'ai'
+                ? 'bg-amber-500 text-neutral-950 shadow-sm'
+                : 'text-neutral-400 hover:text-neutral-200'
+            }`}
+          >
+            <Bot className="w-3.5 h-3.5" />
+            vs Gret AI
+          </button>
+          <button
+            onClick={() => {
+              setGameMode('2player');
+              startNewGame('2player');
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              gameMode === '2player'
+                ? 'bg-amber-500 text-neutral-950 shadow-sm'
+                : 'text-neutral-400 hover:text-neutral-200'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            2 Player Local
+          </button>
         </div>
 
-        {/* Gret's Cards (Face Down) */}
-        <div className="flex items-center -space-x-4 overflow-hidden py-1 px-2">
-          {gretHand.map((c, idx) => (
-            <div
-              key={c.id || idx}
-              className="w-9 h-13 sm:w-11 sm:h-16 rounded-lg bg-gradient-to-br from-neutral-800 to-neutral-950 border border-neutral-600 shadow-md flex items-center justify-center text-[10px] font-bold text-red-500 transform -rotate-1 hover:-translate-y-1 transition-transform"
+        <div className="flex items-center gap-2">
+          {gameMode === '2player' && (
+            <button
+              onClick={() => setPlayer2HideCards((prev) => !prev)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white text-xs font-medium transition cursor-pointer"
+              title={player2HideCards ? "Show P2 cards" : "Hide P2 cards for privacy"}
             >
-              UNO
+              {player2HideCards ? (
+                <>
+                  <EyeOff className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="hidden sm:inline">P2 Cards Hidden</span>
+                </>
+              ) : (
+                <>
+                  <Eye className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="hidden sm:inline">P2 Cards Visible</span>
+                </>
+              )}
+            </button>
+          )}
+          <button
+            onClick={() => startNewGame()}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 text-neutral-300 hover:text-white text-xs font-medium transition cursor-pointer"
+            title="Deal new hand"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">New Deal</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Top Banner: Gret or Player 2 Hand & Status */}
+      <div className="w-full mb-4 p-3 rounded-2xl bg-neutral-900 border border-neutral-800 flex flex-col sm:flex-row items-center justify-between text-white shadow-md gap-3">
+        <div className="flex items-center justify-between w-full sm:w-auto gap-3">
+          <div className="flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shadow-xs ${
+              gameMode === '2player' ? 'bg-indigo-500 text-white' : 'bg-white text-neutral-950'
+            }`}>
+              {gameMode === '2player' ? 'P2' : 'G'}
             </div>
-          ))}
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-xs text-neutral-100">
+                  {gameMode === '2player' ? 'Player 2' : 'Gret'}
+                </span>
+                {gretHand.length === 1 && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-600 text-white font-bold animate-pulse">
+                    UNO!
+                  </span>
+                )}
+              </div>
+              <div className="text-[11px] text-neutral-400">
+                {gameMode === 'ai' ? (
+                  turn === 'gret' ? (
+                    <span className="text-amber-400 animate-pulse font-medium">
+                      Thinking...
+                    </span>
+                  ) : (
+                    `${gretHand.length} cards in hand`
+                  )
+                ) : (
+                  turn === 'gret' ? (
+                    <span className="text-indigo-400 font-semibold flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-indigo-400 animate-ping" />
+                      Player 2 Turn
+                    </span>
+                  ) : (
+                    `${gretHand.length} cards in hand`
+                  )
+                )}
+              </div>
+            </div>
+          </div>
+
+          {gameMode === '2player' && (
+            <button
+              onClick={handlePlayer2Draw}
+              disabled={turn !== 'gret' || !!winner}
+              className="sm:hidden px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-xs font-semibold transition cursor-pointer"
+            >
+              Draw
+            </button>
+          )}
+        </div>
+
+        {/* P2 Draw Button (Desktop) & Cards Ribbon */}
+        <div className="flex items-center gap-3 overflow-hidden py-1 px-1 max-w-full">
+          {gameMode === '2player' && (
+            <button
+              onClick={handlePlayer2Draw}
+              disabled={turn !== 'gret' || !!winner}
+              className="hidden sm:inline-flex px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-xs font-semibold transition cursor-pointer shrink-0"
+            >
+              P2 Draw
+            </button>
+          )}
+
+          {/* Cards Display */}
+          <div className="flex items-center -space-x-3 sm:-space-x-4 overflow-x-auto py-1 px-1">
+            {gretHand.map((c, idx) => {
+              if (gameMode === 'ai' || player2HideCards) {
+                return (
+                  <div
+                    key={c.id || idx}
+                    className="w-9 h-13 sm:w-11 sm:h-16 rounded-lg bg-gradient-to-br from-neutral-800 to-neutral-950 border border-neutral-600 shadow-md flex items-center justify-center text-[10px] font-bold text-red-500 transform -rotate-1 hover:-translate-y-1 transition-transform shrink-0"
+                  >
+                    UNO
+                  </div>
+                );
+              }
+
+              const playable = isCardPlayable(c) && turn === 'gret' && !winner;
+              return (
+                <button
+                  key={c.id || idx}
+                  onClick={() => handlePlayer2PlayCard(c)}
+                  disabled={!playable}
+                  className={`relative w-11 h-16 sm:w-13 sm:h-19 rounded-lg border shadow-md flex flex-col items-center justify-between p-1 transition-all transform select-none shrink-0 ${getColorBg(
+                    c.color
+                  )} ${
+                    playable
+                      ? 'hover:-translate-y-2 hover:scale-105 ring-2 ring-indigo-400 cursor-pointer z-10'
+                      : 'opacity-60 cursor-not-allowed'
+                  }`}
+                >
+                  <div className="self-start text-[8px] sm:text-[10px] font-bold font-mono">
+                    {getDisplayValue(c.value)}
+                  </div>
+                  <div className="w-5 h-6 sm:w-7 sm:h-8 rounded bg-white/20 flex items-center justify-center font-black text-xs sm:text-sm">
+                    {getDisplayValue(c.value)}
+                  </div>
+                  <div className="self-end text-[8px] sm:text-[10px] font-bold font-mono">
+                    {getDisplayValue(c.value)}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -535,7 +757,12 @@ export const UnoGame: React.FC = () => {
             {turn === 'player' ? (
               <span className="text-emerald-400 flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                Your Turn
+                {gameMode === '2player' ? "Player 1's Turn" : 'Your Turn'}
+              </span>
+            ) : gameMode === '2player' ? (
+              <span className="text-indigo-400 flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-indigo-400 animate-ping" />
+                Player 2's Turn
               </span>
             ) : (
               <span className="text-neutral-400">Gret's Turn</span>
@@ -547,10 +774,16 @@ export const UnoGame: React.FC = () => {
         <div className="flex items-center justify-center gap-8 sm:gap-14">
           {/* Draw Pile */}
           <div
-            onClick={handlePlayerDraw}
+            onClick={() => {
+              if (turn === 'player') {
+                handlePlayerDraw();
+              } else if (gameMode === '2player') {
+                handlePlayer2Draw();
+              }
+            }}
             className={`w-20 h-28 sm:w-28 sm:h-40 rounded-2xl bg-gradient-to-br from-neutral-800 via-neutral-900 to-black border-2 border-neutral-700 shadow-xl flex flex-col items-center justify-center cursor-pointer transition-all transform hover:scale-105 active:scale-95 ${
-              turn === 'player' && !winner
-                ? 'ring-4 ring-emerald-500/30'
+              !winner
+                ? 'ring-4 ring-amber-500/30'
                 : 'opacity-70'
             }`}
           >
@@ -628,15 +861,17 @@ export const UnoGame: React.FC = () => {
           <div className="absolute inset-0 bg-black/85 backdrop-blur-xs rounded-3xl flex flex-col items-center justify-center p-6 z-40 text-center animate-fade-in">
             <Trophy className="w-14 h-14 text-amber-400 mb-2 animate-bounce" />
             <h3 className="text-2xl font-black text-white mb-1">
-              {winner === 'player' ? 'YOU WON UNO!' : 'GRET WON!'}
+              {winner === 'player'
+                ? (gameMode === '2player' ? 'PLAYER 1 WINS UNO!' : 'YOU WON UNO!')
+                : (gameMode === '2player' ? 'PLAYER 2 WINS UNO!' : 'GRET WON!')}
             </h3>
             <p className="text-neutral-300 text-xs max-w-xs mb-5">
               {winner === 'player'
-                ? 'Flawless card management and wild card timing!'
-                : 'Better luck next time. Gret cleared their hand!'}
+                ? (gameMode === '2player' ? 'Player 1 successfully emptied their hand first!' : 'Flawless card management and wild card timing!')
+                : (gameMode === '2player' ? 'Player 2 successfully emptied their hand first!' : 'Better luck next time. Gret cleared their hand!')}
             </p>
             <button
-              onClick={startNewGame}
+              onClick={() => startNewGame()}
               className="px-5 py-2.5 rounded-xl bg-white text-neutral-950 font-bold text-xs hover:bg-neutral-200 transition cursor-pointer shadow-lg"
             >
               Play Again
@@ -645,12 +880,12 @@ export const UnoGame: React.FC = () => {
         )}
       </div>
 
-      {/* Player Hand & Controls */}
+      {/* Player 1 Hand & Controls */}
       <div className="w-full flex flex-col items-center">
         <div className="w-full flex items-center justify-between mb-2 px-2">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-neutral-900 dark:text-neutral-100">
-              Your Hand ({playerHand.length} cards)
+              {gameMode === '2player' ? 'Player 1 Hand' : 'Your Hand'} ({playerHand.length} cards)
             </span>
             {playerHand.length === 1 && (
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-600 text-white font-bold animate-bounce">
@@ -663,12 +898,12 @@ export const UnoGame: React.FC = () => {
             <button
               onClick={handlePlayerDraw}
               disabled={turn !== 'player' || !!winner}
-              className="px-3 py-1.5 rounded-lg bg-neutral-200 dark:bg-neutral-800 hover:bg-neutral-300 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 text-xs font-medium transition cursor-pointer disabled:opacity-50"
+              className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition cursor-pointer disabled:opacity-50"
             >
-              Draw Card
+              {gameMode === '2player' ? 'P1 Draw' : 'Draw Card'}
             </button>
             <button
-              onClick={startNewGame}
+              onClick={() => startNewGame()}
               className="p-1.5 rounded-lg text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition cursor-pointer"
               title="Restart Game"
             >
@@ -677,7 +912,7 @@ export const UnoGame: React.FC = () => {
           </div>
         </div>
 
-        {/* Player Cards Ribbon */}
+        {/* Player 1 Cards Ribbon */}
         <div className="w-full flex items-center justify-center -space-x-3 sm:-space-x-4 overflow-x-auto py-4 px-3 min-h-[140px]">
           {playerHand.map((card) => {
             const playable = isCardPlayable(card) && turn === 'player' && !winner;
