@@ -2,9 +2,20 @@ import "dotenv/config";
 import express, { Request, Response } from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenAI } from "@google/genai";
+import {
+  ChatMessage,
+  DEFAULT_MODEL,
+  FAST_MODEL,
+  SEARCH_MODEL,
+  VISION_MODEL,
+  GretUnavailableError,
+  groqComplete,
+  groqStream,
+  hasGroqKeys,
+  isGretAvailable,
+} from "./groqClient";
 
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 async function startServer() {
   const app = express();
@@ -12,25 +23,28 @@ async function startServer() {
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
-  // Helper to safely get initialized Gemini client
-  function getGeminiClient(): GoogleGenAI | null {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey || apiKey.trim() === "" || apiKey === "MY_GEMINI_API_KEY") {
-      return null;
+  // CORS so the website (e.g. on Vercel) can call this API server (e.g. on Render).
+  // Set ALLOWED_ORIGINS to a comma-separated list to restrict it; defaults to any origin.
+  const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
+    .split(",")
+    .map((o) => o.trim().replace(/\/$/, ""))
+    .filter(Boolean);
+  app.use("/api", (req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin && (allowedOrigins.length === 0 || allowedOrigins.includes(origin))) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Vary", "Origin");
+      res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type");
     }
-    return new GoogleGenAI({
-      apiKey,
-      httpOptions: {
-        headers: {
-          "User-Agent": "aistudio-build",
-        },
-      },
-    });
-  }
+    if (req.method === "OPTIONS") return res.sendStatus(204);
+    next();
+  });
 
   // Extract clean human-friendly error messages from AI or API errors
   function extractFriendlyErrorMessage(err: any): string {
     if (!err) return "An unexpected error occurred.";
+    if (err instanceof GretUnavailableError) return err.message;
     let msg = typeof err === "string" ? err : err.message || JSON.stringify(err);
 
     // Recursively unpack nested JSON error strings
@@ -68,78 +82,42 @@ async function startServer() {
       msg.includes("429") ||
       msg.includes("quota")
     ) {
-      return "Rate limit reached. Please wait a moment before trying again.";
+      return "Gret is busy right now. Please wait a moment before trying again.";
     }
     if (
-      msg.includes("API_KEY_INVALID") ||
-      msg.includes("PERMISSION_DENIED")
+      msg.includes("invalid_api_key") ||
+      msg.includes("Invalid API Key")
     ) {
       return "AI API key is invalid or lacks necessary permissions.";
     }
     return msg;
   }
 
-  // Model fallback execution for standard generateContent
-  async function generateContentWithFallback(
-    ai: GoogleGenAI,
-    primaryModel: string,
-    params: { contents: any; config?: any }
-  ) {
-    const safePrimary = primaryModel === "gemini-3.8-flash" ? "gemini-3.6-flash" : primaryModel;
-    const fallbackCandidates = [
-      safePrimary,
-      "gemini-3.6-flash",
-      "gemini-3.1-flash-lite",
-      "gemini-3.5-flash",
-    ].filter(Boolean);
-    const modelsToTry = Array.from(new Set(fallbackCandidates));
-
-    let lastError: any = null;
-    for (let round = 0; round < 2; round++) {
-      for (let i = 0; i < modelsToTry.length; i++) {
-        const currentModel = modelsToTry[i];
-        try {
-          const config = { ...params.config };
-          if (currentModel.includes("lite") && config?.tools) {
-            delete config.tools;
-          }
-          return await ai.models.generateContent({
-            model: currentModel,
-            contents: params.contents,
-            config,
-          });
-        } catch (err: any) {
-          lastError = err;
-          const errMsg = err?.message || String(err);
-          console.warn(`[AI Fallback] ${currentModel} failed (round ${round + 1}):`, errMsg);
-
-          // Do not retry on permanent auth errors
-          if (errMsg.includes("API_KEY_INVALID") || errMsg.includes("PERMISSION_DENIED")) {
-            throw err;
-          }
-
-          // Immediately advance to next candidate model in the pool
-          continue;
-        }
-      }
-      // Brief pause between rounds if all candidates encountered issues on round 1
-      if (round === 0) {
-        await new Promise((resolve) => setTimeout(resolve, 400));
-      }
+  // One-shot text generation on the Groq key pool (used by the helper endpoints)
+  async function generateText(params: {
+    contents: string;
+    config?: { systemInstruction?: string; temperature?: number; responseMimeType?: string };
+  }): Promise<{ text: string }> {
+    const messages: ChatMessage[] = [];
+    if (params.config?.systemInstruction) {
+      messages.push({ role: "system", content: params.config.systemInstruction });
     }
-    throw lastError;
+    messages.push({ role: "user", content: params.contents });
+    const text = await groqComplete(messages, {
+      models: [DEFAULT_MODEL, FAST_MODEL],
+      temperature: params.config?.temperature,
+      json: params.config?.responseMimeType === "application/json",
+    });
+    return { text };
   }
 
   // Health check endpoint - never returns secrets or model names
   app.get("/api/health", (_req: Request, res: Response) => {
-    const hasApiKey = Boolean(
-      process.env.GEMINI_API_KEY &&
-      process.env.GEMINI_API_KEY.trim() !== "" &&
-      process.env.GEMINI_API_KEY !== "MY_GEMINI_API_KEY"
-    );
+    const hasApiKey = hasGroqKeys();
     res.json({
       status: "ok",
       hasApiKey,
+      available: hasApiKey && isGretAvailable(),
       defaultModel: "Gret AI",
     });
   });
@@ -159,8 +137,8 @@ async function startServer() {
     });
 
     try {
-      const ai = getGeminiClient();
-      if (!ai) {
+      const hasKeys = hasGroqKeys();
+      if (!hasKeys) {
         res.write(`data: ${JSON.stringify({ error: "AI assistant key is not configured on the server." })}\n\n`);
         res.write("data: [DONE]\n\n");
         return res.end();
@@ -168,7 +146,7 @@ async function startServer() {
 
       const {
         messages,
-        model = "gemini-3.6-flash",
+        model = "",
         systemInstruction,
         temperature = 0.7,
         mode = "standard",
@@ -181,28 +159,17 @@ async function startServer() {
         return res.end();
       }
 
-      // Convert messages to Gemini Content structure, supporting text, signs, numbers, documents, and images
-      const contents = messages.map((msg: any) => {
-        const parts: any[] = [];
-        if (msg.content && typeof msg.content === "string") {
-          parts.push({ text: msg.content });
-        }
+      // Convert messages to OpenAI-style chat messages for Groq, supporting text, documents, and images
+      let hasImages = false;
+      const chatMessages: ChatMessage[] = messages.map((msg: any) => {
+        let text = typeof msg.content === "string" ? msg.content : "";
+        const images: string[] = [];
         if (msg.attachments && Array.isArray(msg.attachments)) {
           for (const att of msg.attachments) {
-            if (att.type === "image" && att.url) {
-              const base64Match = att.url.match(/^data:([^;]+);base64,(.+)$/);
-              if (base64Match) {
-                parts.push({
-                  inlineData: {
-                    mimeType: base64Match[1],
-                    data: base64Match[2],
-                  },
-                });
-              }
+            if (att.type === "image" && typeof att.url === "string" && att.url.startsWith("data:")) {
+              images.push(att.url);
             } else if (att.type === "video") {
-              parts.push({
-                text: `[Attached video file: "${att.name || 'video'}" (${Math.round((att.size || 0) / 1024)} KB)]`,
-              });
+              text += `\n[Attached video file: "${att.name || 'video'}" (${Math.round((att.size || 0) / 1024)} KB)]`;
             } else if (att.type === "document" || att.type === "code") {
               let content = att.textContent;
               if (!content && typeof att.url === "string" && att.url.startsWith("data:")) {
@@ -216,17 +183,23 @@ async function startServer() {
                 }
               }
               if (content) {
-                parts.push({
-                  text: `--- File: ${att.name || 'document'} (${att.mimeType || 'text/plain'}) ---\n${content.slice(0, 50000)}`,
-                });
+                text += `\n--- File: ${att.name || 'document'} (${att.mimeType || 'text/plain'}) ---\n${content.slice(0, 50000)}`;
               }
             }
           }
         }
-        return {
-          role: msg.role === "assistant" ? "model" : "user",
-          parts: parts.length > 0 ? parts : [{ text: " " }],
-        };
+        const role = msg.role === "assistant" ? "assistant" : "user";
+        if (role === "user" && images.length > 0) {
+          hasImages = true;
+          return {
+            role,
+            content: [
+              { type: "text", text: text || "Describe this image." },
+              ...images.map((url) => ({ type: "image_url", image_url: { url } })),
+            ],
+          };
+        }
+        return { role, content: text || " " };
       });
 
       // Compose adaptive system instruction based on AI mode
@@ -267,104 +240,30 @@ async function startServer() {
             : 0.7,
       };
 
-      // Enable Google Search Grounding if requested or in web-search mode
-      if (webSearch || mode === "web-search") {
-        promptConfig.tools = [{ googleSearch: {} }];
+      // Pick Groq models: vision for images, compound (built-in web search) for web mode,
+      // the fast model for the "lite" option, otherwise the default model.
+      let models: string[];
+      if (hasImages) {
+        models = [VISION_MODEL];
+      } else if (webSearch || mode === "web-search") {
+        models = [SEARCH_MODEL, DEFAULT_MODEL];
+      } else if (typeof model === "string" && model.includes("lite")) {
+        models = [FAST_MODEL, DEFAULT_MODEL];
+      } else {
+        models = [DEFAULT_MODEL, FAST_MODEL];
       }
 
-      const activeModel = (model === "gemini-3.8-flash" ? "gemini-3.6-flash" : model) || "gemini-3.6-flash";
+      const abort = new AbortController();
+      req.on("aborted", () => abort.abort());
 
-      const fallbackCandidates = [
-        activeModel,
-        "gemini-3.6-flash",
-        "gemini-3.1-flash-lite",
-        "gemini-3.5-flash",
-      ].filter(Boolean);
-      const modelsToTry = Array.from(new Set(fallbackCandidates));
-
-      let streamSuccess = false;
-      let lastStreamError: any = null;
-      let totalChunksSent = 0;
-
-      for (let round = 0; round < 2; round++) {
-        if (streamSuccess || isClientDisconnected || res.writableEnded) break;
-
-        for (let i = 0; i < modelsToTry.length; i++) {
-          if (isClientDisconnected || res.writableEnded) break;
-          const currentModel = modelsToTry[i];
-
-          try {
-            const candidateConfig = { ...promptConfig };
-            if (currentModel.includes("lite") && candidateConfig.tools) {
-              delete candidateConfig.tools;
-            }
-
-            const stream = await ai.models.generateContentStream({
-              model: currentModel,
-              contents,
-              config: candidateConfig,
-            });
-
-            const seenUrls = new Set<string>();
-
-            for await (const chunk of stream) {
-              if (isClientDisconnected || res.writableEnded) break;
-              const text = chunk.text;
-
-              // Extract Google search grounding sources if available
-              let sources: Array<{ title: string; url: string }> = [];
-              const candidates = (chunk as any).candidates;
-              if (candidates && candidates[0]?.groundingMetadata?.groundingChunks) {
-                for (const gc of candidates[0].groundingMetadata.groundingChunks) {
-                  if (gc.web?.uri && !seenUrls.has(gc.web.uri)) {
-                    seenUrls.add(gc.web.uri);
-                    sources.push({
-                      title: gc.web.title || new URL(gc.web.uri).hostname,
-                      url: gc.web.uri,
-                    });
-                  }
-                }
-              }
-
-              if (text || sources.length > 0) {
-                res.write(`data: ${JSON.stringify({ text: text || "", sources: sources.length > 0 ? sources : undefined })}\n\n`);
-                totalChunksSent++;
-              }
-            }
-
-            streamSuccess = true;
-            break;
-          } catch (err: any) {
-            lastStreamError = err;
-            const errMsg = err?.message || String(err);
-            console.warn(`[AI Stream Fallback] ${currentModel} (round ${round + 1}) failed:`, errMsg);
-
-            // If chunks were already transmitted to the client, we cannot restart with another model
-            if (totalChunksSent > 0) {
-              streamSuccess = true;
-              break;
-            }
-
-            // Unrecoverable auth errors
-            if (errMsg.includes("API_KEY_INVALID") || errMsg.includes("PERMISSION_DENIED")) {
-              throw err;
-            }
-
-            // Instantly try next model in the pool without delay
-            continue;
-          }
+      await groqStream(
+        [{ role: "system", content: promptConfig.systemInstruction }, ...chatMessages],
+        { models, temperature: promptConfig.temperature, signal: abort.signal },
+        (text) => {
+          if (isClientDisconnected || res.writableEnded) return;
+          res.write(`data: ${JSON.stringify({ text })}\n\n`);
         }
-
-        if (streamSuccess) break;
-        if (round === 0 && !isClientDisconnected && !res.writableEnded) {
-          // Brief 300ms pause only if entire first round exhausted
-          await new Promise((resolve) => setTimeout(resolve, 300));
-        }
-      }
-
-      if (!streamSuccess && totalChunksSent === 0 && lastStreamError) {
-        throw lastStreamError;
-      }
+      );
 
       if (!isClientDisconnected && !res.writableEnded) {
         res.write("data: [DONE]\n\n");
@@ -374,9 +273,11 @@ async function startServer() {
       const friendlyMessage = extractFriendlyErrorMessage(error);
       console.error("AI service error:", friendlyMessage);
 
-      res.write(`data: ${JSON.stringify({ error: friendlyMessage })}\n\n`);
-      res.write("data: [DONE]\n\n");
-      res.end();
+      if (!res.writableEnded) {
+        res.write(`data: ${JSON.stringify({ error: friendlyMessage })}\n\n`);
+        res.write("data: [DONE]\n\n");
+        res.end();
+      }
     }
   });
 
@@ -388,11 +289,11 @@ async function startServer() {
         return res.status(400).json({ error: "Prompt is required." });
       }
 
-      const ai = getGeminiClient();
+      const hasKeys = hasGroqKeys();
       let enhancedPrompt = prompt.trim();
-      if (ai) {
+      if (hasKeys) {
         try {
-          const enhancement = await generateContentWithFallback(ai, "gemini-3.6-flash", {
+          const enhancement = await generateText({
             contents: `You are Gret, an expert visual artist. Given this user image request: "${prompt}", create a concise, rich visual prompt (max 30 words) describing the subject, lighting, colors, and art style. Only return the prompt text without quotes.`,
             config: { temperature: 0.7 },
           });
@@ -427,13 +328,13 @@ async function startServer() {
         return res.status(400).json({ error: "Prompt is required." });
       }
 
-      const ai = getGeminiClient();
+      const hasKeys = hasGroqKeys();
       let title = "Generated Video Clip";
       let enhancedPrompt = prompt.trim();
 
-      if (ai) {
+      if (hasKeys) {
         try {
-          const detail = await generateContentWithFallback(ai, "gemini-3.6-flash", {
+          const detail = await generateText({
             contents: `You are Gret, a cinematic AI director. Given this video request: "${prompt}", generate:
 Title: 2-4 word title
 Prompt: 20-word cinematic camera movement and lighting description
@@ -475,8 +376,8 @@ Format as: Title: <title> | Prompt: <description>`,
   // Conversation title generator endpoint
   app.post("/api/title", async (req: Request, res: Response) => {
     try {
-      const ai = getGeminiClient();
-      if (!ai) {
+      const hasKeys = hasGroqKeys();
+      if (!hasKeys) {
         return res.status(500).json({ error: "API key is not configured." });
       }
 
@@ -485,7 +386,7 @@ Format as: Title: <title> | Prompt: <description>`,
         return res.status(400).json({ error: "Message is required." });
       }
 
-      const response = await generateContentWithFallback(ai, "gemini-3.6-flash", {
+      const response = await generateText({
         contents: `Create a very short title (3-5 words maximum) summarizing this conversation topic:\n\n"${message.slice(0, 300)}"`,
         config: {
           systemInstruction:
@@ -510,12 +411,12 @@ Format as: Title: <title> | Prompt: <description>`,
         return res.status(400).json({ error: "Prompt is required." });
       }
 
-      const ai = getGeminiClient();
-      if (!ai) {
+      const hasKeys = hasGroqKeys();
+      if (!hasKeys) {
         return res.json({ enhanced: prompt.trim() });
       }
 
-      const response = await generateContentWithFallback(ai, "gemini-3.6-flash", {
+      const response = await generateText({
         contents: `You are an expert prompt engineer. Take this user's raw prompt and rewrite it into a highly detailed, clear, and comprehensive prompt designed to get a flawless, zero-mistake response from an AI assistant.
 Raw user prompt: "${prompt.trim()}"
 Selected AI mode: "${mode}"
@@ -541,8 +442,8 @@ Rules:
   // Gret Code: AI Coding Agent Assist endpoint (like Claude Code & Cursor)
   app.post("/api/code/assist", async (req: Request, res: Response) => {
     try {
-      const ai = getGeminiClient();
-      if (!ai) {
+      const hasKeys = hasGroqKeys();
+      if (!hasKeys) {
         return res.status(500).json({ error: "AI assistant service is currently unavailable." });
       }
 
@@ -596,7 +497,7 @@ ${projectContext}
 
 Generate the modified code and explanation adhering to the JSON schema.`;
 
-      const response = await generateContentWithFallback(ai, "gemini-3.6-flash", {
+      const response = await generateText({
         contents: userContent,
         config: {
           systemInstruction: systemPrompt,
@@ -738,15 +639,15 @@ Generate the modified code and explanation adhering to the JSON schema.`;
       }
 
       // Natural language agent command via AI
-      const ai = getGeminiClient();
-      if (!ai) {
+      const hasKeys = hasGroqKeys();
+      if (!hasKeys) {
         return res.json({
           output: `[gret-cli] Executed: ${command}\nStatus: Completed (Local sandbox mode).`,
           status: "success",
         });
       }
 
-      const response = await generateContentWithFallback(ai, "gemini-3.6-flash", {
+      const response = await generateText({
         contents: `You are the terminal agent inside Gret Code (like Claude Code CLI).
 The user ran the command/instruction in their terminal: "${command}"
 Workspace files: ${fileNames.join(", ")}

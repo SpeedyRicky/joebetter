@@ -1,3 +1,4 @@
+import { apiUrl } from '../../utils/api';
 import { useState, KeyboardEvent } from 'react';
 import {
   Sparkles,
@@ -54,7 +55,7 @@ export function JoeCodeAgentPanel({
         filesMap[f.name] = f.content;
       });
 
-      const res = await fetch('/api/code/assist', {
+      const res = await fetch(apiUrl('/api/code/assist'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
