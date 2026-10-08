@@ -1,3 +1,4 @@
+import { apiUrl } from '../../utils/api';
 import { useState, useRef, useEffect, KeyboardEvent } from 'react';
 import { Terminal, CornerDownLeft, Trash2, CheckCircle, AlertTriangle } from 'lucide-react';
 import { TerminalEntry, CodeFile } from '../../types';
@@ -63,7 +64,7 @@ Type 'help' for command manual, 'test' to run unit tests, or type any instructio
         filesMap[f.name] = f.content;
       });
 
-      const res = await fetch('/api/code/run-command', {
+      const res = await fetch(apiUrl('/api/code/run-command'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

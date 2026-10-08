@@ -1,3 +1,4 @@
+import { apiUrl } from '../utils/api';
 import { MediaAttachment, AIMode, GroundingSource } from '../types';
 
 export interface StreamChatParams {
@@ -26,7 +27,7 @@ export interface HealthResponse {
 
 export async function checkServerHealth(): Promise<HealthResponse> {
   try {
-    const res = await fetch('/api/health');
+    const res = await fetch(apiUrl('/api/health'));
     if (!res.ok) {
       throw new Error(`Server returned ${res.status}`);
     }
@@ -54,7 +55,7 @@ export async function streamChatMessage({
   onComplete,
 }: StreamChatParams): Promise<void> {
   try {
-    const response = await fetch('/api/chat', {
+    const response = await fetch(apiUrl('/api/chat'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -138,7 +139,7 @@ export async function streamChatMessage({
 
 export async function enhancePrompt(prompt: string, mode?: string): Promise<string> {
   try {
-    const res = await fetch('/api/enhance-prompt', {
+    const res = await fetch(apiUrl('/api/enhance-prompt'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt, mode }),
@@ -153,7 +154,7 @@ export async function enhancePrompt(prompt: string, mode?: string): Promise<stri
 
 export async function generateConversationTitle(firstMessage: string): Promise<string> {
   try {
-    const response = await fetch('/api/title', {
+    const response = await fetch(apiUrl('/api/title'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: firstMessage }),
@@ -167,7 +168,7 @@ export async function generateConversationTitle(firstMessage: string): Promise<s
 }
 
 export async function generateImage(prompt: string): Promise<{ url: string; prompt: string; type: 'image' }> {
-  const response = await fetch('/api/generate-image', {
+  const response = await fetch(apiUrl('/api/generate-image'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt }),
@@ -182,7 +183,7 @@ export async function generateImage(prompt: string): Promise<{ url: string; prom
 }
 
 export async function generateVideo(prompt: string): Promise<{ url: string; prompt: string; title: string; type: 'video'; duration: number }> {
-  const response = await fetch('/api/generate-video', {
+  const response = await fetch(apiUrl('/api/generate-video'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt }),
