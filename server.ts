@@ -11,7 +11,7 @@ import {
   GretUnavailableError,
   groqComplete,
   groqStream,
-  hasGroqKeys,
+  hasGroqKey,
   isGretAvailable,
 } from "./groqClient";
 
@@ -113,7 +113,7 @@ async function startServer() {
 
   // Health check endpoint - never returns secrets or model names
   app.get("/api/health", (_req: Request, res: Response) => {
-    const hasApiKey = hasGroqKeys();
+    const hasApiKey = hasGroqKey();
     res.json({
       status: "ok",
       hasApiKey,
@@ -137,8 +137,8 @@ async function startServer() {
     });
 
     try {
-      const hasKeys = hasGroqKeys();
-      if (!hasKeys) {
+      const hasKey = hasGroqKey();
+      if (!hasKey) {
         res.write(`data: ${JSON.stringify({ error: "AI assistant key is not configured on the server." })}\n\n`);
         res.write("data: [DONE]\n\n");
         return res.end();
@@ -289,9 +289,9 @@ async function startServer() {
         return res.status(400).json({ error: "Prompt is required." });
       }
 
-      const hasKeys = hasGroqKeys();
+      const hasKey = hasGroqKey();
       let enhancedPrompt = prompt.trim();
-      if (hasKeys) {
+      if (hasKey) {
         try {
           const enhancement = await generateText({
             contents: `You are Gret, an expert visual artist. Given this user image request: "${prompt}", create a concise, rich visual prompt (max 30 words) describing the subject, lighting, colors, and art style. Only return the prompt text without quotes.`,
@@ -328,11 +328,11 @@ async function startServer() {
         return res.status(400).json({ error: "Prompt is required." });
       }
 
-      const hasKeys = hasGroqKeys();
+      const hasKey = hasGroqKey();
       let title = "Generated Video Clip";
       let enhancedPrompt = prompt.trim();
 
-      if (hasKeys) {
+      if (hasKey) {
         try {
           const detail = await generateText({
             contents: `You are Gret, a cinematic AI director. Given this video request: "${prompt}", generate:
@@ -376,8 +376,8 @@ Format as: Title: <title> | Prompt: <description>`,
   // Conversation title generator endpoint
   app.post("/api/title", async (req: Request, res: Response) => {
     try {
-      const hasKeys = hasGroqKeys();
-      if (!hasKeys) {
+      const hasKey = hasGroqKey();
+      if (!hasKey) {
         return res.status(500).json({ error: "API key is not configured." });
       }
 
@@ -411,8 +411,8 @@ Format as: Title: <title> | Prompt: <description>`,
         return res.status(400).json({ error: "Prompt is required." });
       }
 
-      const hasKeys = hasGroqKeys();
-      if (!hasKeys) {
+      const hasKey = hasGroqKey();
+      if (!hasKey) {
         return res.json({ enhanced: prompt.trim() });
       }
 
@@ -442,8 +442,8 @@ Rules:
   // Gret Code: AI Coding Agent Assist endpoint (like Claude Code & Cursor)
   app.post("/api/code/assist", async (req: Request, res: Response) => {
     try {
-      const hasKeys = hasGroqKeys();
-      if (!hasKeys) {
+      const hasKey = hasGroqKey();
+      if (!hasKey) {
         return res.status(500).json({ error: "AI assistant service is currently unavailable." });
       }
 
@@ -639,8 +639,8 @@ Generate the modified code and explanation adhering to the JSON schema.`;
       }
 
       // Natural language agent command via AI
-      const hasKeys = hasGroqKeys();
-      if (!hasKeys) {
+      const hasKey = hasGroqKey();
+      if (!hasKey) {
         return res.json({
           output: `[gret-cli] Executed: ${command}\nStatus: Completed (Local sandbox mode).`,
           status: "success",

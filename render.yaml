@@ -7,15 +7,7 @@ services:
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
-      - key: GROQ_API_KEY_1
-        sync: false
-      - key: GROQ_API_KEY_2
-        sync: false
-      - key: GROQ_API_KEY_3
-        sync: false
-      - key: GROQ_API_KEY_4
-        sync: false
-      - key: GROQ_API_KEY_5
+      - key: GROQ_API_KEY
         sync: false
       - key: ALLOWED_ORIGINS
         value: https://gret-gpt.vercel.app
