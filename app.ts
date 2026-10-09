@@ -3,16 +3,47 @@
 import express, { Request, Response } from "express";
 import {
   ChatMessage,
-  DEFAULT_MODEL,
-  FAST_MODEL,
-  SEARCH_MODEL,
-  VISION_MODEL,
+  FAST_TEXT_MODELS,
+  REQUEST_BUDGET,
+  TEXT_MODELS,
+  WEB_SEARCH_TOOLS,
   GretUnavailableError,
+  findVisionModels,
   groqComplete,
   groqStream,
   hasGroqKey,
   isGretAvailable,
+  isTooLargeError,
 } from "./groqClient.js";
+
+// Groq's vision model accepts at most this many images per request.
+const MAX_IMAGES = 3;
+
+// Replaces the images in a message with a short note, for models that can't see images.
+function imagesToText(content: any, note: string): string {
+  if (!Array.isArray(content)) return content;
+  const text = content
+    .filter((part: any) => part?.type === "text")
+    .map((part: any) => part.text)
+    .join("\n");
+  const count = content.filter((part: any) => part?.type === "image_url").length;
+  return `${text}\n[${count} image(s) attached. ${note}]`;
+}
+
+// Shortens a conversation that is over Groq's per-request size limit: keeps the last
+// few messages and trims long texts (for example big attached documents).
+function shrinkConversation(messages: ChatMessage[]): ChatMessage[] {
+  const recent = messages.slice(-3);
+  return recent.map((m, i) => {
+    const limit = i === recent.length - 1 ? 8000 : 1500;
+    const cut = (t: string) => (t.length > limit ? `${t.slice(0, limit)}\n[...shortened...]` : t);
+    if (typeof m.content === "string") return { ...m, content: cut(m.content) };
+    if (Array.isArray(m.content)) {
+      return { ...m, content: m.content.map((part: any) => (part?.type === "text" ? { ...part, text: cut(part.text) } : part)) };
+    }
+    return m;
+  });
+}
 
 export function createApp() {
   const app = express();
@@ -101,7 +132,7 @@ export function createApp() {
     }
     messages.push({ role: "user", content: params.contents });
     const text = await groqComplete(messages, {
-      models: [DEFAULT_MODEL, FAST_MODEL],
+      models: TEXT_MODELS,
       temperature: params.config?.temperature,
       json: params.config?.responseMimeType === "application/json",
     });
@@ -129,8 +160,11 @@ export function createApp() {
     res.flushHeaders?.();
 
     let isClientDisconnected = false;
-    req.on("aborted", () => {
+    const abort = new AbortController();
+    res.on("close", () => {
+      if (res.writableFinished) return;
       isClientDisconnected = true;
+      abort.abort(); // the user left: stop the Groq request
     });
 
     try {
@@ -157,7 +191,6 @@ export function createApp() {
       }
 
       // Convert messages to OpenAI-style chat messages for Groq, supporting text, documents, and images
-      let hasImages = false;
       const chatMessages: ChatMessage[] = messages.map((msg: any) => {
         let text = typeof msg.content === "string" ? msg.content : "";
         const images: string[] = [];
@@ -187,7 +220,6 @@ export function createApp() {
         }
         const role = msg.role === "assistant" ? "assistant" : "user";
         if (role === "user" && images.length > 0) {
-          hasImages = true;
           return {
             role,
             content: [
@@ -223,6 +255,12 @@ export function createApp() {
         }
       }
 
+      const isWebSearch = webSearch || mode === "web-search";
+      if (isWebSearch) {
+        // The model doesn't know today's date; web answers need it.
+        activeSystemInstruction += `\nToday's date is ${new Date().toISOString().slice(0, 10)}.`;
+      }
+
       const promptConfig: any = {
         systemInstruction: activeSystemInstruction,
         temperature:
@@ -237,36 +275,74 @@ export function createApp() {
             : 0.7,
       };
 
-      // Pick Groq models: vision for images, compound (built-in web search) for web mode,
-      // the fast model for the "lite" option, otherwise the default model.
-      let models: string[];
-      if (hasImages) {
-        models = [VISION_MODEL];
-      } else if (webSearch || mode === "web-search") {
-        models = [SEARCH_MODEL, DEFAULT_MODEL];
-      } else if (typeof model === "string" && model.includes("lite")) {
-        models = [FAST_MODEL, DEFAULT_MODEL];
-      } else {
-        models = [DEFAULT_MODEL, FAST_MODEL];
-      }
+      // The "lite" option uses the faster model first; web search uses Groq's built-in
+      // browser_search tool.
+      const textModels = typeof model === "string" && model.includes("lite") ? FAST_TEXT_MODELS : TEXT_MODELS;
+      const extra = isWebSearch ? { tools: WEB_SEARCH_TOOLS } : undefined;
 
-      const abort = new AbortController();
-      req.on("aborted", () => abort.abort());
+      const system: ChatMessage = { role: "system", content: promptConfig.systemInstruction };
+      // One time budget for every attempt at this reply (Vercel stops the function at 60s).
+      const deadline = Date.now() + REQUEST_BUDGET;
+      let sentAny = false;
+      const onText = (text: string) => {
+        if (isClientDisconnected || res.writableEnded) return;
+        sentAny = true;
+        res.write(`data: ${JSON.stringify({ text })}\n\n`);
+      };
 
-      await groqStream(
-        [{ role: "system", content: promptConfig.systemInstruction }, ...chatMessages],
-        { models, temperature: promptConfig.temperature, signal: abort.signal },
-        (text) => {
-          if (isClientDisconnected || res.writableEnded) return;
-          res.write(`data: ${JSON.stringify({ text })}\n\n`);
+      // Images go to a vision model only when the newest message has them (Groq's vision
+      // model takes up to 3); images from earlier messages become a short note.
+      const lastUserIndex = chatMessages.map((m) => m.role).lastIndexOf("user");
+      const latestHasImages = lastUserIndex !== -1 && Array.isArray(chatMessages[lastUserIndex].content);
+      const visionModels = latestHasImages ? await findVisionModels() : [];
+      const useVision = visionModels.length > 0;
+      const VISION_OFF_NOTE = "Image viewing isn't available right now, so tell the user you can't see it.";
+      const prepared: ChatMessage[] = chatMessages.map((m, i) => {
+        if (!Array.isArray(m.content)) return m;
+        if (i === lastUserIndex && useVision) {
+          let kept = 0;
+          return { ...m, content: m.content.filter((part: any) => part?.type !== "image_url" || ++kept <= MAX_IMAGES) };
         }
-      );
+        const note = i === lastUserIndex ? VISION_OFF_NOTE : "They were shared earlier in the conversation.";
+        return { ...m, content: imagesToText(m.content, note) };
+      });
+
+      const streamText = (msgs: ChatMessage[]) =>
+        groqStream(
+          [system, ...msgs.map((m) => (Array.isArray(m.content) ? { ...m, content: imagesToText(m.content, VISION_OFF_NOTE) } : m))],
+          { models: textModels, extra, temperature: promptConfig.temperature, signal: abort.signal, deadline },
+          onText
+        );
+      const streamReply = async (msgs: ChatMessage[]) => {
+        if (!useVision) return streamText(msgs);
+        try {
+          await groqStream(
+            [system, ...msgs],
+            { models: visionModels, kind: "vision", temperature: promptConfig.temperature, signal: abort.signal, deadline },
+            onText
+          );
+        } catch (err: any) {
+          // The vision model is missing, over its limit or failing: answer with the text
+          // models instead (they have their own limits).
+          if (sentAny || isTooLargeError(err) || err?.name === "AbortError") throw err;
+          await streamText(msgs);
+        }
+      };
+
+      try {
+        await streamReply(prepared);
+      } catch (err) {
+        // Over Groq's size limit: try once more with a shortened conversation.
+        if (sentAny || !isTooLargeError(err)) throw err;
+        await streamReply(shrinkConversation(prepared));
+      }
 
       if (!isClientDisconnected && !res.writableEnded) {
         res.write("data: [DONE]\n\n");
       }
       res.end();
     } catch (error: any) {
+      if (isClientDisconnected) return; // the user left; nothing to report
       const friendlyMessage = extractFriendlyErrorMessage(error);
       console.error("AI service error:", friendlyMessage);
 
