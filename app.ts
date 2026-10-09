@@ -259,7 +259,13 @@ export function createApp() {
       // decides when a search helps. It doesn't know today's date, so tell it.
       activeSystemInstruction +=
         `\nToday's date is ${new Date().toISOString().slice(0, 10)}.` +
-        "\nYou can search the web. Search whenever a question is about something specific, recent, niche or that you are not sure about (for example a particular game, product, person, event, library or technique), and combine what you find into a clear, complete answer. Don't say you can't help before searching.";
+        "\nYou can search the web. Search whenever a question is about something specific, recent, niche or that you are not sure about (for example a particular game, product, person, event, library or technique), and combine what you find into a clear, complete answer. Don't say you can't help before searching." +
+        "\n\nHow to answer well:" +
+        "\n- First work out what the person really means. If a request could mean several different things (for example, making a website \"fluid\" could mean a fluid/responsive layout, fluid typography that scales with the screen, or a fluid liquid animation effect), briefly list the main possibilities, answer the most likely one fully, and cover or offer the others. If it is truly unclear, ask a short clarifying question." +
+        "\n- When there are several good approaches, present them with their pros, cons and when to use each, then recommend one." +
+        "\n- Explain the idea in plain words before giving code, and keep code focused on what was asked." +
+        "\n- Double-check facts, numbers and code before answering. Never invent facts, sources, features or quotes; if you are unsure, say so and search." +
+        "\n- Use clear structure (short sections, bullet points, tables when helpful) and match the length to the question.";
 
       const promptConfig: any = {
         systemInstruction: activeSystemInstruction,
@@ -277,7 +283,11 @@ export function createApp() {
 
       // The "lite" option uses the faster model first. Web search is on for every message.
       const textModels = typeof model === "string" && model.includes("lite") ? FAST_TEXT_MODELS : TEXT_MODELS;
-      let extra: Record<string, any> | undefined = { tools: WEB_SEARCH_TOOLS };
+      // Deep Think mode asks the model to reason as much as it can.
+      let extra: Record<string, any> | undefined = {
+        tools: WEB_SEARCH_TOOLS,
+        ...(mode === "deep-think" ? { reasoning_effort: "high" } : {}),
+      };
 
       const system: ChatMessage = { role: "system", content: promptConfig.systemInstruction };
       // One time budget for every attempt at this reply (Vercel stops the function at 60s).
