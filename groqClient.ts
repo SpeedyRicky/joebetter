@@ -203,6 +203,8 @@ async function withModelFallback<T>(
 
   for (const model of models) {
     const extra: Record<string, any> = {
+      // Same reasoning setting as Groq's own example for the gpt-oss models.
+      ...(model.startsWith("openai/gpt-oss") ? { reasoning_effort: "medium" } : {}),
       // Qwen models think out loud unless told to keep their reasoning out of the reply.
       ...(model.startsWith("qwen/") ? { reasoning_format: "hidden" } : {}),
       ...(opts.extra || {}),
