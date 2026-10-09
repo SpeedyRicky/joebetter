@@ -3,8 +3,8 @@
 import express, { Request, Response } from "express";
 import {
   ChatMessage,
-  DEFAULT_MODEL,
-  FAST_MODEL,
+  FAST_TEXT_MODELS,
+  TEXT_MODELS,
   WEB_SEARCH_TOOLS,
   GretUnavailableError,
   findVisionModels,
@@ -13,6 +13,7 @@ import {
   hasGroqKey,
   isGretAvailable,
   isModelError,
+  isTooLargeError,
 } from "./groqClient.js";
 
 // Groq's vision model accepts at most this many images per request.
@@ -27,6 +28,21 @@ function imagesToText(content: any, note: string): string {
     .join("\n");
   const count = content.filter((part: any) => part?.type === "image_url").length;
   return `${text}\n[${count} image(s) attached. ${note}]`;
+}
+
+// Shortens a conversation that is over Groq's per-request size limit: keeps the last
+// few messages and trims long texts (for example big attached documents).
+function shrinkConversation(messages: ChatMessage[]): ChatMessage[] {
+  const recent = messages.slice(-3);
+  return recent.map((m, i) => {
+    const limit = i === recent.length - 1 ? 8000 : 1500;
+    const cut = (t: string) => (t.length > limit ? `${t.slice(0, limit)}\n[...shortened...]` : t);
+    if (typeof m.content === "string") return { ...m, content: cut(m.content) };
+    if (Array.isArray(m.content)) {
+      return { ...m, content: m.content.map((part: any) => (part?.type === "text" ? { ...part, text: cut(part.text) } : part)) };
+    }
+    return m;
+  });
 }
 
 export function createApp() {
@@ -116,7 +132,7 @@ export function createApp() {
     }
     messages.push({ role: "user", content: params.contents });
     const text = await groqComplete(messages, {
-      models: [DEFAULT_MODEL, FAST_MODEL],
+      models: TEXT_MODELS,
       temperature: params.config?.temperature,
       json: params.config?.responseMimeType === "application/json",
     });
@@ -144,8 +160,11 @@ export function createApp() {
     res.flushHeaders?.();
 
     let isClientDisconnected = false;
-    req.on("aborted", () => {
+    const abort = new AbortController();
+    res.on("close", () => {
+      if (res.writableFinished) return;
       isClientDisconnected = true;
+      abort.abort(); // the user left: stop the Groq request
     });
 
     try {
@@ -172,7 +191,6 @@ export function createApp() {
       }
 
       // Convert messages to OpenAI-style chat messages for Groq, supporting text, documents, and images
-      let hasImages = false;
       const chatMessages: ChatMessage[] = messages.map((msg: any) => {
         let text = typeof msg.content === "string" ? msg.content : "";
         const images: string[] = [];
@@ -202,7 +220,6 @@ export function createApp() {
         }
         const role = msg.role === "assistant" ? "assistant" : "user";
         if (role === "user" && images.length > 0) {
-          hasImages = true;
           return {
             role,
             content: [
@@ -238,6 +255,12 @@ export function createApp() {
         }
       }
 
+      const isWebSearch = webSearch || mode === "web-search";
+      if (isWebSearch) {
+        // The model doesn't know today's date; web answers need it.
+        activeSystemInstruction += `\nToday's date is ${new Date().toISOString().slice(0, 10)}.`;
+      }
+
       const promptConfig: any = {
         systemInstruction: activeSystemInstruction,
         temperature:
@@ -252,32 +275,10 @@ export function createApp() {
             : 0.7,
       };
 
-      // Only the newest message with images keeps them (Groq's vision model takes up
-      // to 3 images); earlier images are summarized as text.
-      if (hasImages) {
-        let lastImageIndex = -1;
-        chatMessages.forEach((m, i) => {
-          if (Array.isArray(m.content)) lastImageIndex = i;
-        });
-        chatMessages.forEach((m, i) => {
-          if (!Array.isArray(m.content)) return;
-          if (i === lastImageIndex) {
-            let kept = 0;
-            m.content = m.content.filter((part: any) => part?.type !== "image_url" || ++kept <= MAX_IMAGES);
-          } else {
-            m.content = imagesToText(m.content, "They were shared earlier in the conversation.");
-          }
-        });
-      }
-
       // The "lite" option uses the faster model first; web search uses Groq's built-in
-      // browser_search tool; images go to a vision model when the key has one.
-      const textModels =
-        typeof model === "string" && model.includes("lite") ? [FAST_MODEL, DEFAULT_MODEL] : [DEFAULT_MODEL, FAST_MODEL];
-      const extra = webSearch || mode === "web-search" ? { tools: WEB_SEARCH_TOOLS } : undefined;
-
-      const abort = new AbortController();
-      req.on("aborted", () => abort.abort());
+      // browser_search tool.
+      const textModels = typeof model === "string" && model.includes("lite") ? FAST_TEXT_MODELS : TEXT_MODELS;
+      const extra = isWebSearch ? { tools: WEB_SEARCH_TOOLS } : undefined;
 
       const system: ChatMessage = { role: "system", content: promptConfig.systemInstruction };
       let sentAny = false;
@@ -286,30 +287,51 @@ export function createApp() {
         sentAny = true;
         res.write(`data: ${JSON.stringify({ text })}\n\n`);
       };
-      const textOnlyMessages = (): ChatMessage[] =>
-        chatMessages.map((m) =>
-          Array.isArray(m.content)
-            ? { ...m, content: imagesToText(m.content, "Image viewing isn't available right now, so tell the user you can't see it.") }
-            : m
-        );
-      const streamText = (msgs: ChatMessage[]) =>
-        groqStream([system, ...msgs], { models: textModels, extra, temperature: promptConfig.temperature, signal: abort.signal }, onText);
 
-      const visionModels = hasImages ? await findVisionModels() : [];
-      if (hasImages && visionModels.length > 0) {
+      // Images go to a vision model only when the newest message has them (Groq's vision
+      // model takes up to 3); images from earlier messages become a short note.
+      const lastUserIndex = chatMessages.map((m) => m.role).lastIndexOf("user");
+      const latestHasImages = lastUserIndex !== -1 && Array.isArray(chatMessages[lastUserIndex].content);
+      const visionModels = latestHasImages ? await findVisionModels() : [];
+      const useVision = visionModels.length > 0;
+      const VISION_OFF_NOTE = "Image viewing isn't available right now, so tell the user you can't see it.";
+      const prepared: ChatMessage[] = chatMessages.map((m, i) => {
+        if (!Array.isArray(m.content)) return m;
+        if (i === lastUserIndex && useVision) {
+          let kept = 0;
+          return { ...m, content: m.content.filter((part: any) => part?.type !== "image_url" || ++kept <= MAX_IMAGES) };
+        }
+        const note = i === lastUserIndex ? VISION_OFF_NOTE : "They were shared earlier in the conversation.";
+        return { ...m, content: imagesToText(m.content, note) };
+      });
+
+      const streamText = (msgs: ChatMessage[]) =>
+        groqStream(
+          [system, ...msgs.map((m) => (Array.isArray(m.content) ? { ...m, content: imagesToText(m.content, VISION_OFF_NOTE) } : m))],
+          { models: textModels, extra, temperature: promptConfig.temperature, signal: abort.signal },
+          onText
+        );
+      const streamReply = async (msgs: ChatMessage[]) => {
+        if (!useVision) return streamText(msgs);
         try {
           await groqStream(
-            [system, ...chatMessages],
+            [system, ...msgs],
             { models: visionModels, kind: "vision", temperature: promptConfig.temperature, signal: abort.signal },
             onText
           );
         } catch (err) {
           // No vision model worked: answer with text models instead of failing.
           if (sentAny || !isModelError(err)) throw err;
-          await streamText(textOnlyMessages());
+          await streamText(msgs);
         }
-      } else {
-        await streamText(hasImages ? textOnlyMessages() : chatMessages);
+      };
+
+      try {
+        await streamReply(prepared);
+      } catch (err) {
+        // Over Groq's size limit: try once more with a shortened conversation.
+        if (sentAny || !isTooLargeError(err)) throw err;
+        await streamReply(shrinkConversation(prepared));
       }
 
       if (!isClientDisconnected && !res.writableEnded) {
