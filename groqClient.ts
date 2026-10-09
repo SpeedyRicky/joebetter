@@ -37,15 +37,21 @@ export const TOO_LARGE_MESSAGE =
   "That message or attachment is too long for Gret right now. Please shorten it or start a new chat.";
 export const SERVICE_ERROR_MESSAGE = "Gret's AI service had a problem. Please try again in a moment.";
 export const TIMEOUT_MESSAGE = "Gret took too long to answer. Please try again.";
+export const REJECTED_MESSAGE = "Gret couldn't process that request. Please rephrase it or remove the attachment.";
 const BAD_KEY_MESSAGE = "AI API key is invalid or lacks necessary permissions.";
 
 const ONE_MINUTE = 60 * 1000;
 const FIVE_MINUTES = 5 * ONE_MINUTE;
 const ONE_DAY = 24 * 60 * ONE_MINUTE;
-// How long to wait for Groq to start answering, and when to stop trying more models
-// (Vercel ends the function at 60 seconds).
+// Time limits. Vercel stops the function at 60 seconds, so all attempts for one reply
+// share a 50-second budget; a streamed reply must start within 30 seconds and may not
+// go silent for more than 20.
+export const REQUEST_BUDGET = 50 * 1000;
 const START_TIMEOUT = 30 * 1000;
-const OVERALL_DEADLINE = 45 * 1000;
+const IDLE_TIMEOUT = 20 * 1000;
+const MIN_ATTEMPT_TIME = 3 * 1000;
+// How long to skip a model that Groq says doesn't exist or isn't allowed.
+const UNUSABLE_FOR = 10 * ONE_MINUTE;
 
 export class GretUnavailableError extends Error {
   constructor(message: string = UNAVAILABLE_MESSAGE) {
@@ -59,9 +65,15 @@ const apiKey = rawKey && !rawKey.startsWith("MY_") ? rawKey : "";
 
 // Per model: time until which it is over its Groq rate limit.
 const blockedUntil = new Map<string, number>();
+// Per model: time until which it is skipped because Groq said it is missing or not allowed.
+const unusableUntil = new Map<string, number>();
 
 function isBlocked(model: string): boolean {
   return (blockedUntil.get(model) ?? 0) > Date.now();
+}
+
+function isUnusable(model: string): boolean {
+  return (unusableUntil.get(model) ?? 0) > Date.now();
 }
 
 export function hasGroqKey(): boolean {
@@ -71,8 +83,9 @@ export function hasGroqKey(): boolean {
 // Gret is available while at least one chat model it can use is not rate limited.
 export function isGretAvailable(): boolean {
   if (!hasGroqKey()) return false;
-  const pool = modelCache?.chat.length ? modelCache.chat : TEXT_MODELS;
-  return pool.some((m) => !isBlocked(m));
+  if (modelCache && modelCache.chat.length === 0) return false; // Groq lists no usable chat model
+  const pool = modelCache ? modelCache.chat : TEXT_MODELS;
+  return pool.some((m) => !isBlocked(m) && !isUnusable(m));
 }
 
 function unavailableError(models: string[]): GretUnavailableError {
@@ -114,7 +127,7 @@ function cooldownFor429(res: Response, body: string): number {
 type FailureKind = "rate_limited" | "bad_key" | "model" | "rejected" | "too_large" | "server";
 
 class AttemptError extends Error {
-  constructor(public kind: FailureKind, message: string) {
+  constructor(public kind: FailureKind, message: string, public code = "") {
     super(message);
   }
 }
@@ -159,10 +172,11 @@ function classify(status: number, info: GroqErrorInfo): FailureKind {
   return "server";
 }
 
-async function postToGroq(payload: any, signal?: AbortSignal): Promise<Response> {
-  // Give up if Groq hasn't started answering in time (cleared once it does).
+// Sends one request. `timeout` limits the wait for Groq's response headers: for a streamed
+// reply that is the time to start answering, for a non-streamed one the whole answer.
+async function postToGroq(payload: any, timeout: number, signal?: AbortSignal): Promise<Response> {
   const startTimeout = new AbortController();
-  const timer = setTimeout(() => startTimeout.abort(), START_TIMEOUT);
+  const timer = setTimeout(() => startTimeout.abort(), Math.max(timeout, 0));
   let res: Response;
   try {
     res = await fetch(GROQ_URL, {
@@ -195,7 +209,7 @@ async function postToGroq(payload: any, signal?: AbortSignal): Promise<Response>
     throw new AttemptError(kind, BAD_KEY_MESSAGE);
   }
   if (kind === "too_large") throw new AttemptError(kind, TOO_LARGE_MESSAGE);
-  throw new AttemptError(kind, info.message || `Groq ${res.status}`);
+  throw new AttemptError(kind, info.message || `Groq ${res.status}`, info.code);
 }
 
 // Models that can't hold a normal chat: speech, moderation, embeddings, retired systems.
@@ -276,7 +290,7 @@ async function resolveModels(preferred: string[], kind: "text" | "vision"): Prom
 export async function findVisionModels(): Promise<string[]> {
   if (!hasGroqKey()) return [];
   const models = await resolveModels([VISION_MODEL, BUILTIN_VISION], "vision");
-  return models.filter((m) => !isBlocked(m));
+  return models.filter((m) => !isBlocked(m) && !isUnusable(m));
 }
 
 // Settings each model needs: the gpt-oss reasoning level from Groq's own example, and
@@ -287,58 +301,104 @@ function modelSettings(model: string): Record<string, any> {
   return {};
 }
 
-// Runs `attempt` with each usable model until one succeeds. If Groq refuses a request's
-// options (web search, JSON mode, ...), it is retried with fewer of them before giving up.
+// Options for one model: Groq's web search tool only works with the gpt-oss models.
+function optionsFor(model: string, extra: Record<string, any> = {}): Record<string, any> {
+  const options = { ...modelSettings(model), ...extra };
+  if (!model.startsWith("openai/gpt-oss")) delete options.tools;
+  return options;
+}
+
+// After Groq refuses a request, the options to retry with: without the ones its error
+// names, or (once) without any. Null when there is nothing left to drop.
+function retryOptions(options: Record<string, any>, err: AttemptError, firstRefusal: boolean): Record<string, any> | null {
+  const text = `${err.code} ${err.message}`.toLowerCase();
+  const named = Object.keys(options).filter((key) => {
+    if (key === "tools") return /tool|browser_search/.test(text);
+    if (key === "response_format") return /json|response_format/.test(text);
+    if (key === "reasoning_effort") return /reasoning_effort/.test(text) || (/reasoning/.test(text) && !text.includes("reasoning_format"));
+    if (key === "reasoning_format") return /reasoning_format/.test(text) || (/reasoning/.test(text) && !text.includes("reasoning_effort"));
+    return text.includes(key);
+  });
+  if (named.length > 0) {
+    const reduced = { ...options };
+    for (const key of named) delete reduced[key];
+    return reduced;
+  }
+  return firstRefusal && Object.keys(options).length > 0 ? {} : null;
+}
+
+// Runs `attempt` with each usable model until one succeeds, within the request's time
+// budget. If Groq refuses a request's options (web search, JSON mode, ...), it is retried
+// without them first.
 async function withModelFallback<T>(
   opts: CompletionOptions,
-  attempt: (model: string, extra: Record<string, any>) => Promise<T>
+  attempt: (model: string, options: Record<string, any>, deadline: number) => Promise<T>
 ): Promise<T> {
   if (!hasGroqKey()) throw new Error("AI assistant key is not configured on the server.");
-  const started = Date.now();
-  const candidates = await resolveModels(opts.models, opts.kind ?? "text");
+  const deadline = opts.deadline ?? Date.now() + REQUEST_BUDGET;
+  const candidates = (await resolveModels(opts.models, opts.kind ?? "text")).filter((m) => !isUnusable(m));
   const models = candidates.filter((m) => !isBlocked(m));
   if (candidates.length > 0 && models.length === 0) throw unavailableError(candidates);
 
-  let lastError: any = null;
+  let sawServerError = false;
+  let sawTimeout = false;
+  let sawRateLimit = false;
+  let outOfTime = false;
+  let refused: AttemptError | null = null;
+
   for (const model of models) {
-    if (Date.now() - started > OVERALL_DEADLINE) {
-      lastError = new AttemptError("server", TIMEOUT_MESSAGE);
-      break;
-    }
-    const settings = modelSettings(model);
-    const variants: Record<string, any>[] = [];
-    for (const v of [{ ...settings, ...(opts.extra || {}) }, settings, {}]) {
-      if (!variants.some((x) => JSON.stringify(x) === JSON.stringify(v))) variants.push(v);
-    }
-    for (let i = 0; i < variants.length; i++) {
+    let options = optionsFor(model, opts.extra);
+    let firstRefusal = true;
+    while (true) {
+      if (deadline - Date.now() < MIN_ATTEMPT_TIME) {
+        outOfTime = true;
+        break;
+      }
       try {
-        return await attempt(model, variants[i]);
+        return await attempt(model, options, deadline);
       } catch (err: any) {
-        lastError = err;
         if (err?.name === "AbortError") throw err;
-        const kind: FailureKind = err instanceof AttemptError ? err.kind : "server";
-        console.warn(`[Groq] ${model} failed (${kind}):`, err?.message || err);
-        if (kind === "bad_key" || kind === "too_large") throw err;
-        // Options refused: retry with fewer. Refused even without options: Groq's message.
-        if (kind === "rejected") {
-          if (i < variants.length - 1) continue;
-          throw err;
+        const failure = err instanceof AttemptError ? err : new AttemptError("server", String(err?.message || err));
+        console.warn(`[Groq] ${model} failed (${failure.kind}):`, failure.message);
+        if (failure.kind === "bad_key" || failure.kind === "too_large") throw failure;
+        if (failure.kind === "rejected") {
+          const reduced = retryOptions(options, failure, firstRefusal);
+          firstRefusal = false;
+          if (reduced) {
+            options = reduced;
+            continue;
+          }
+          // A failed web search can work on another model; anything else won't.
+          if (failure.code === "tool_use_failed") {
+            sawServerError = true;
+            break;
+          }
+          refused = failure;
+          break;
         }
-        break; // model missing, rate limited or Groq failed: try the next model
+        if (failure.kind === "model") unusableUntil.set(model, Date.now() + UNUSABLE_FOR);
+        if (failure.kind === "rate_limited") sawRateLimit = true;
+        if (failure.kind === "server") {
+          if (failure.message === TIMEOUT_MESSAGE) sawTimeout = true;
+          else sawServerError = true;
+        }
+        break; // try the next model
       }
     }
+    if (refused || outOfTime) break;
   }
 
+  if (refused) throw new AttemptError("rejected", REJECTED_MESSAGE, refused.code);
   if (candidates.length > 0 && candidates.every(isBlocked)) throw unavailableError(candidates);
-  if (!lastError || isModelError(lastError)) {
-    modelCache = null; // refresh Groq's model list on the next request
+  if (outOfTime || sawTimeout) throw new AttemptError("server", TIMEOUT_MESSAGE);
+  if (sawServerError) throw new AttemptError("server", SERVICE_ERROR_MESSAGE);
+  if (sawRateLimit) throw unavailableError(candidates.filter(isBlocked));
+  // No model worked because Groq said they're missing: refresh its model list next time.
+  if (candidates.length > 0) {
+    modelCache = null;
     modelListFailedAt = 0;
-    throw new AttemptError("model", MODEL_UNAVAILABLE_MESSAGE);
   }
-  if (lastError instanceof AttemptError && lastError.kind === "rate_limited") {
-    throw unavailableError(candidates.filter(isBlocked));
-  }
-  throw new AttemptError("server", lastError?.message === TIMEOUT_MESSAGE ? TIMEOUT_MESSAGE : SERVICE_ERROR_MESSAGE);
+  throw new AttemptError("model", MODEL_UNAVAILABLE_MESSAGE);
 }
 
 // Cleans a reply as it streams: drops a leading <think>...</think> block (in case a model
@@ -383,11 +443,13 @@ class ReplyFilter {
     let text = this.pending;
     this.pending = "";
     if (!this.stripCitations) return text;
-    text = text.replace(/【[^】]{0,80}】/g, "");
-    const open = text.lastIndexOf("【");
-    if (!final && open !== -1 && text.length - open <= 80) {
-      this.pending = text.slice(open); // a marker may be split across chunks
-      text = text.slice(0, open);
+    // Groq's markers look like 【1†L9-L13】; other 【...】 brackets are normal text.
+    text = text.replace(/[ \t]*【\d+†[^】]{0,80}】/g, "");
+    if (final) return text.replace(/[ \t]*【\d+†[^】]*$/, "");
+    const partial = text.match(/[ \t]*【(\d+(†[^】]{0,80})?)?$/);
+    if (partial) {
+      this.pending = partial[0]; // a marker may be split across chunks
+      text = text.slice(0, partial.index);
     }
     return text;
   }
@@ -410,6 +472,8 @@ export interface CompletionOptions {
   json?: boolean;
   extra?: Record<string, any>;
   signal?: AbortSignal;
+  // Time (ms since epoch) by which to give up; shared by retries of the same reply.
+  deadline?: number;
 }
 
 export async function groqComplete(messages: ChatMessage[], opts: CompletionOptions): Promise<string> {
@@ -417,13 +481,16 @@ export async function groqComplete(messages: ChatMessage[], opts: CompletionOpti
     ...opts,
     extra: { ...(opts.json ? { response_format: { type: "json_object" } } : {}), ...(opts.extra || {}) },
   };
-  return withModelFallback(withJson, async (model, extra) => {
+  return withModelFallback(withJson, async (model, options, deadline) => {
     const res = await postToGroq(
-      { model, messages, temperature: opts.temperature ?? 0.7, ...extra },
+      { model, messages, temperature: opts.temperature ?? 0.7, ...options },
+      deadline - Date.now(),
       opts.signal
     );
     const data: any = await res.json();
-    return cleanReply(data?.choices?.[0]?.message?.content ?? "", Boolean(extra.tools));
+    const text = cleanReply(data?.choices?.[0]?.message?.content ?? "", Boolean(options.tools));
+    if (!text) throw new AttemptError("server", "Groq returned an empty answer");
+    return text;
   });
 }
 
@@ -434,19 +501,21 @@ export async function groqStream(
   opts: CompletionOptions,
   onText: (text: string) => void
 ): Promise<void> {
-  return withModelFallback(opts, async (model, extra) => {
+  return withModelFallback(opts, async (model, options, deadline) => {
     const res = await postToGroq(
-      { model, messages, temperature: opts.temperature ?? 0.7, ...extra, stream: true },
+      { model, messages, temperature: opts.temperature ?? 0.7, ...options, stream: true },
+      Math.min(START_TIMEOUT, deadline - Date.now()),
       opts.signal
     );
     if (!res.body) throw new AttemptError("server", "Empty response body from Groq");
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
-    const filter = new ReplyFilter(Boolean(extra.tools));
+    const filter = new ReplyFilter(Boolean(options.tools));
     let buffer = "";
     let sentAny = false;
     const emit = (text: string) => {
+      if (!sentAny) text = text.trimStart(); // a reply that is only blank space counts as empty
       if (!text) return;
       sentAny = true;
       onText(text);
@@ -456,10 +525,30 @@ export async function groqStream(
       // Nothing but reasoning (or nothing at all): let the next option or model answer.
       if (!sentAny) throw new AttemptError("server", "Groq returned an empty answer");
     };
+    // Reads the next chunk, giving up if Groq goes silent (or, before any text was sent,
+    // if the reply's time budget runs out).
+    const read = () =>
+      new Promise<ReadableStreamReadResult<Uint8Array>>((resolve, reject) => {
+        const wait = sentAny ? IDLE_TIMEOUT : Math.min(IDLE_TIMEOUT, Math.max(deadline - Date.now(), 0));
+        const timer = setTimeout(() => {
+          reader.cancel().catch(() => {});
+          reject(new AttemptError("server", TIMEOUT_MESSAGE));
+        }, wait);
+        reader.read().then(
+          (result) => {
+            clearTimeout(timer);
+            resolve(result);
+          },
+          (err) => {
+            clearTimeout(timer);
+            reject(err);
+          }
+        );
+      });
 
     try {
       while (true) {
-        const { done, value } = await reader.read();
+        const { done, value } = await read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
@@ -479,7 +568,7 @@ export async function groqStream(
             // An error reported inside the stream (for example a failed web search).
             if (sentAny) return finish();
             const code = String(parsed.error.code || "");
-            throw new AttemptError(code === "tool_use_failed" ? "rejected" : "server", String(parsed.error.message || code));
+            throw new AttemptError(code === "tool_use_failed" ? "rejected" : "server", String(parsed.error.message || code), code);
           }
           emit(filter.push(parsed?.choices?.[0]?.delta?.content || ""));
         }

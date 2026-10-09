@@ -4,6 +4,7 @@ import express, { Request, Response } from "express";
 import {
   ChatMessage,
   FAST_TEXT_MODELS,
+  REQUEST_BUDGET,
   TEXT_MODELS,
   WEB_SEARCH_TOOLS,
   GretUnavailableError,
@@ -12,7 +13,6 @@ import {
   groqStream,
   hasGroqKey,
   isGretAvailable,
-  isModelError,
   isTooLargeError,
 } from "./groqClient.js";
 
@@ -281,6 +281,8 @@ export function createApp() {
       const extra = isWebSearch ? { tools: WEB_SEARCH_TOOLS } : undefined;
 
       const system: ChatMessage = { role: "system", content: promptConfig.systemInstruction };
+      // One time budget for every attempt at this reply (Vercel stops the function at 60s).
+      const deadline = Date.now() + REQUEST_BUDGET;
       let sentAny = false;
       const onText = (text: string) => {
         if (isClientDisconnected || res.writableEnded) return;
@@ -308,7 +310,7 @@ export function createApp() {
       const streamText = (msgs: ChatMessage[]) =>
         groqStream(
           [system, ...msgs.map((m) => (Array.isArray(m.content) ? { ...m, content: imagesToText(m.content, VISION_OFF_NOTE) } : m))],
-          { models: textModels, extra, temperature: promptConfig.temperature, signal: abort.signal },
+          { models: textModels, extra, temperature: promptConfig.temperature, signal: abort.signal, deadline },
           onText
         );
       const streamReply = async (msgs: ChatMessage[]) => {
@@ -316,12 +318,13 @@ export function createApp() {
         try {
           await groqStream(
             [system, ...msgs],
-            { models: visionModels, kind: "vision", temperature: promptConfig.temperature, signal: abort.signal },
+            { models: visionModels, kind: "vision", temperature: promptConfig.temperature, signal: abort.signal, deadline },
             onText
           );
-        } catch (err) {
-          // No vision model worked: answer with text models instead of failing.
-          if (sentAny || !isModelError(err)) throw err;
+        } catch (err: any) {
+          // The vision model is missing, over its limit or failing: answer with the text
+          // models instead (they have their own limits).
+          if (sentAny || isTooLargeError(err) || err?.name === "AbortError") throw err;
           await streamText(msgs);
         }
       };
@@ -339,6 +342,7 @@ export function createApp() {
       }
       res.end();
     } catch (error: any) {
+      if (isClientDisconnected) return; // the user left; nothing to report
       const friendlyMessage = extractFriendlyErrorMessage(error);
       console.error("AI service error:", friendlyMessage);
 
