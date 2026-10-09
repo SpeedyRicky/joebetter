@@ -251,15 +251,15 @@ export function createApp() {
             'You are Gret in Health & Wellness Mode (Evidence-Based Health, Fitness & Longevity Advisor). You provide clear, science-grounded, and actionable guidance on:\n1. Fitness & Resistance Training: Progressive overload programming, hypertrophy, strength routines, biomechanics, exercise swaps, and form cues.\n2. Cardiovascular Conditioning: Zone 2 endurance, VO2 max intervals, and energy systems development.\n3. Nutrition & Energy Balance: Macronutrient targets, meal prep frameworks, protein pacing, and hydration strategies.\n4. Sleep Architecture & Recovery: Circadian rhythm optimization, sleep hygiene protocols, HRV, and active recovery.\n5. Habit Architecture: Behavioral psychology, sustainable lifestyle habits, and tracking metrics.\n\nDeliver motivating, rigorous, and empathetic advice. When appropriate, provide structured weekly schedules or nutritional breakdowns. Note: Always encourage consulting healthcare providers for medical diagnoses or treatments.';
         } else {
           activeSystemInstruction =
-            'You are Gret, a friendly, world-class AI assistant matching the finest capabilities of ChatGPT, Claude, and Gemini. Greet users warmly with "Hi, how are you?". You accurately read and process numbers (such as 1, 42, 100), signs and symbols (such as @, #, $, %, &, *, math operators), documents, spreadsheets, and media attachments. When asked to write code, provide complete and clean implementations. When asked to create media, offer creative prompts.';
+            'You are Gret, a friendly, knowledgeable AI assistant who can help with any topic: games, technology, coding and web development, science, school work, business, everyday questions and more. Give the most accurate, complete and useful answer you can, in a natural conversational tone. You accurately read and process numbers, signs and symbols, documents, spreadsheets, and media attachments. When asked to write code, provide complete, working implementations with brief explanations.';
         }
       }
 
-      const isWebSearch = webSearch || mode === "web-search";
-      if (isWebSearch) {
-        // The model doesn't know today's date; web answers need it.
-        activeSystemInstruction += `\nToday's date is ${new Date().toISOString().slice(0, 10)}.`;
-      }
+      // Gret can search the web on every question (Groq's browser_search tool); the model
+      // decides when a search helps. It doesn't know today's date, so tell it.
+      activeSystemInstruction +=
+        `\nToday's date is ${new Date().toISOString().slice(0, 10)}.` +
+        "\nYou can search the web. Search whenever a question is about something specific, recent, niche or that you are not sure about (for example a particular game, product, person, event, library or technique), and combine what you find into a clear, complete answer. Don't say you can't help before searching.";
 
       const promptConfig: any = {
         systemInstruction: activeSystemInstruction,
@@ -275,10 +275,9 @@ export function createApp() {
             : 0.7,
       };
 
-      // The "lite" option uses the faster model first; web search uses Groq's built-in
-      // browser_search tool.
+      // The "lite" option uses the faster model first. Web search is on for every message.
       const textModels = typeof model === "string" && model.includes("lite") ? FAST_TEXT_MODELS : TEXT_MODELS;
-      const extra = isWebSearch ? { tools: WEB_SEARCH_TOOLS } : undefined;
+      let extra: Record<string, any> | undefined = { tools: WEB_SEARCH_TOOLS };
 
       const system: ChatMessage = { role: "system", content: promptConfig.systemInstruction };
       // One time budget for every attempt at this reply (Vercel stops the function at 60s).
@@ -334,7 +333,14 @@ export function createApp() {
       } catch (err) {
         // Over Groq's size limit: try once more with a shortened conversation.
         if (sentAny || !isTooLargeError(err)) throw err;
-        await streamReply(shrinkConversation(prepared));
+        try {
+          await streamReply(shrinkConversation(prepared));
+        } catch (err2) {
+          // Web search results also count toward the limit: last try without searching.
+          if (sentAny || !isTooLargeError(err2)) throw err2;
+          extra = undefined;
+          await streamReply(shrinkConversation(prepared));
+        }
       }
 
       if (!isClientDisconnected && !res.writableEnded) {
