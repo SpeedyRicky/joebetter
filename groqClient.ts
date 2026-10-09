@@ -363,8 +363,10 @@ async function withModelFallback<T>(
         const failure = err instanceof AttemptError ? err : new AttemptError("server", String(err?.message || err));
         console.warn(`[Groq] ${model} failed (${failure.kind}):`, failure.message);
         if (failure.kind === "bad_key" || failure.kind === "too_large") throw failure;
-        // A failed web search: let the next model search instead of answering without it.
-        if (failure.code === "tool_use_failed" && options.tools) {
+        // A failed web search: let the next model search instead (if one can); otherwise
+        // the retry below answers without web search.
+        const laterCanSearch = models.slice(models.indexOf(model) + 1).some((m) => m.startsWith("openai/gpt-oss"));
+        if (failure.code === "tool_use_failed" && options.tools && laterCanSearch) {
           sawServerError = true;
           break;
         }
@@ -451,9 +453,9 @@ class ReplyFilter {
     this.pending = "";
     if (!this.stripCitations) return text;
     // Groq's markers look like 【1†L9-L13】; other 【...】 brackets are normal text.
-    text = text.replace(/[ \t]*【\d+†[^】]{0,80}】/g, "");
+    text = text.replace(/[ \t]{0,32}【\d+†[^】]{0,80}】/g, "");
     if (final) return text.replace(/[ \t]*【\d+†[^】]*$/, "");
-    const partial = text.match(/[ \t]*(【(\d+(†[^】]{0,80})?)?)?$/);
+    const partial = text.match(/[ \t]{0,32}(【(\d+(†[^】]{0,80})?)?)?$/);
     if (partial && partial[0]) {
       this.pending = partial[0]; // a marker may be split across chunks, or follow these spaces
       text = text.slice(0, partial.index);
@@ -489,22 +491,25 @@ export async function groqComplete(messages: ChatMessage[], opts: CompletionOpti
     extra: { ...(opts.json ? { response_format: { type: "json_object" } } : {}), ...(opts.extra || {}) },
   };
   return withModelFallback(withJson, async (model, options, deadline) => {
+    // The whole answer must arrive within the reply's time budget; on timeout the
+    // request itself is aborted so the connection to Groq is closed.
+    const bodyTimeout = new AbortController();
+    const signal = opts.signal ? AbortSignal.any([opts.signal, bodyTimeout.signal]) : bodyTimeout.signal;
     const res = await postToGroq(
       { model, messages, temperature: opts.temperature ?? 0.7, ...options },
       deadline - Date.now(),
-      opts.signal
+      signal
     );
-    // The whole answer must arrive within the reply's time budget.
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const data: any = await Promise.race([
-      res.json(),
-      new Promise((_, reject) => {
-        timer = setTimeout(() => {
-          res.body?.cancel().catch(() => {});
-          reject(new AttemptError("server", TIMEOUT_MESSAGE));
-        }, Math.max(deadline - Date.now(), 0));
-      }),
-    ]).finally(() => clearTimeout(timer));
+    const timer = setTimeout(() => bodyTimeout.abort(), Math.max(deadline - Date.now(), 0));
+    let data: any;
+    try {
+      data = await res.json();
+    } catch (err) {
+      if (bodyTimeout.signal.aborted && !opts.signal?.aborted) throw new AttemptError("server", TIMEOUT_MESSAGE);
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
     const text = cleanReply(data?.choices?.[0]?.message?.content ?? "", Boolean(options.tools));
     if (!text) throw new AttemptError("server", "Groq returned an empty answer");
     return text;
