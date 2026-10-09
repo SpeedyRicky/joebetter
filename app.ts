@@ -5,14 +5,29 @@ import {
   ChatMessage,
   DEFAULT_MODEL,
   FAST_MODEL,
-  SEARCH_MODEL,
-  VISION_MODEL,
+  WEB_SEARCH_TOOLS,
   GretUnavailableError,
+  findVisionModels,
   groqComplete,
   groqStream,
   hasGroqKey,
   isGretAvailable,
+  isModelError,
 } from "./groqClient.js";
+
+// Groq's vision model accepts at most this many images per request.
+const MAX_IMAGES = 3;
+
+// Replaces the images in a message with a short note, for models that can't see images.
+function imagesToText(content: any, note: string): string {
+  if (!Array.isArray(content)) return content;
+  const text = content
+    .filter((part: any) => part?.type === "text")
+    .map((part: any) => part.text)
+    .join("\n");
+  const count = content.filter((part: any) => part?.type === "image_url").length;
+  return `${text}\n[${count} image(s) attached. ${note}]`;
+}
 
 export function createApp() {
   const app = express();
@@ -237,30 +252,65 @@ export function createApp() {
             : 0.7,
       };
 
-      // Pick Groq models: vision for images, compound (built-in web search) for web mode,
-      // the fast model for the "lite" option, otherwise the default model.
-      let models: string[];
+      // Only the newest message with images keeps them (Groq's vision model takes up
+      // to 3 images); earlier images are summarized as text.
       if (hasImages) {
-        models = [VISION_MODEL];
-      } else if (webSearch || mode === "web-search") {
-        models = [SEARCH_MODEL, DEFAULT_MODEL];
-      } else if (typeof model === "string" && model.includes("lite")) {
-        models = [FAST_MODEL, DEFAULT_MODEL];
-      } else {
-        models = [DEFAULT_MODEL, FAST_MODEL];
+        let lastImageIndex = -1;
+        chatMessages.forEach((m, i) => {
+          if (Array.isArray(m.content)) lastImageIndex = i;
+        });
+        chatMessages.forEach((m, i) => {
+          if (!Array.isArray(m.content)) return;
+          if (i === lastImageIndex) {
+            let kept = 0;
+            m.content = m.content.filter((part: any) => part?.type !== "image_url" || ++kept <= MAX_IMAGES);
+          } else {
+            m.content = imagesToText(m.content, "They were shared earlier in the conversation.");
+          }
+        });
       }
+
+      // The "lite" option uses the faster model first; web search uses Groq's built-in
+      // browser_search tool; images go to a vision model when the key has one.
+      const textModels =
+        typeof model === "string" && model.includes("lite") ? [FAST_MODEL, DEFAULT_MODEL] : [DEFAULT_MODEL, FAST_MODEL];
+      const extra = webSearch || mode === "web-search" ? { tools: WEB_SEARCH_TOOLS } : undefined;
 
       const abort = new AbortController();
       req.on("aborted", () => abort.abort());
 
-      await groqStream(
-        [{ role: "system", content: promptConfig.systemInstruction }, ...chatMessages],
-        { models, temperature: promptConfig.temperature, signal: abort.signal },
-        (text) => {
-          if (isClientDisconnected || res.writableEnded) return;
-          res.write(`data: ${JSON.stringify({ text })}\n\n`);
+      const system: ChatMessage = { role: "system", content: promptConfig.systemInstruction };
+      let sentAny = false;
+      const onText = (text: string) => {
+        if (isClientDisconnected || res.writableEnded) return;
+        sentAny = true;
+        res.write(`data: ${JSON.stringify({ text })}\n\n`);
+      };
+      const textOnlyMessages = (): ChatMessage[] =>
+        chatMessages.map((m) =>
+          Array.isArray(m.content)
+            ? { ...m, content: imagesToText(m.content, "Image viewing isn't available right now, so tell the user you can't see it.") }
+            : m
+        );
+      const streamText = (msgs: ChatMessage[]) =>
+        groqStream([system, ...msgs], { models: textModels, extra, temperature: promptConfig.temperature, signal: abort.signal }, onText);
+
+      const visionModels = hasImages ? await findVisionModels() : [];
+      if (hasImages && visionModels.length > 0) {
+        try {
+          await groqStream(
+            [system, ...chatMessages],
+            { models: visionModels, kind: "vision", temperature: promptConfig.temperature, signal: abort.signal },
+            onText
+          );
+        } catch (err) {
+          // No vision model worked: answer with text models instead of failing.
+          if (sentAny || !isModelError(err)) throw err;
+          await streamText(textOnlyMessages());
         }
-      );
+      } else {
+        await streamText(hasImages ? textOnlyMessages() : chatMessages);
+      }
 
       if (!isClientDisconnected && !res.writableEnded) {
         res.write("data: [DONE]\n\n");

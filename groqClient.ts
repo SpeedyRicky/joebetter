@@ -6,11 +6,17 @@
 // "busy, try again shortly" message instead.
 
 const GROQ_URL = process.env.GROQ_API_URL || "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_MODELS_URL = GROQ_URL.replace(/\/chat\/completions\/?$/, "/models");
 
-export const DEFAULT_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
-export const FAST_MODEL = process.env.GROQ_FAST_MODEL || "llama-3.1-8b-instant";
-export const VISION_MODEL = process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct";
-export const SEARCH_MODEL = process.env.GROQ_SEARCH_MODEL || "groq/compound-mini";
+// Preferred models (Groq retired its Llama models in August 2026 and the Compound
+// systems in September 2026). Gret also asks Groq which models the key can use and
+// switches to a working one, so a future model retirement doesn't break chat.
+export const DEFAULT_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
+export const FAST_MODEL = process.env.GROQ_FAST_MODEL || "openai/gpt-oss-20b";
+export const VISION_MODEL = process.env.GROQ_VISION_MODEL || "qwen/qwen3.8-27b";
+
+// Groq's built-in web search tool (supported by the gpt-oss models).
+export const WEB_SEARCH_TOOLS = [{ type: "browser_search" }];
 
 export const UNAVAILABLE_MESSAGE =
   "Gret is unavailable right now. Today's capacity has been used up. Gret will be back within the next 24 hours, and possibly sooner, so please check back later.";
@@ -108,28 +114,121 @@ async function postToGroq(payload: any, signal?: AbortSignal): Promise<Response>
   throw new AttemptError("server", `Groq ${res.status}: ${body}`);
 }
 
-// Runs `attempt` with each model in turn until one succeeds.
-async function withModelFallback<T>(models: string[], attempt: (model: string) => Promise<T>): Promise<T> {
+export function isModelError(err: any): boolean {
+  return err instanceof AttemptError && err.kind === "model";
+}
+
+// Models that can't hold a normal chat: speech, moderation, embeddings, retired systems.
+const NON_CHAT = /whisper|tts|orpheus|playai|guard|embed|compound/i;
+// Models that accept images.
+const VISION_HINT = /qwen\/qwen3\.\d+-27b|vision|scout|maverick|-vl\b/i;
+
+const MODEL_LIST_TTL = 10 * ONE_MINUTE;
+let modelCache: { ids: Set<string>; at: number } | null = null;
+let modelListFailedAt = 0;
+
+// The models this key can use right now, from Groq's model list (cached for 10 minutes).
+// Returns null when the list can't be fetched (retried after a minute), so callers fall
+// back to their preferred models.
+async function availableModels(): Promise<Set<string> | null> {
+  if (modelCache && Date.now() - modelCache.at < MODEL_LIST_TTL) return modelCache.ids;
+  if (Date.now() - modelListFailedAt < ONE_MINUTE) return modelCache?.ids ?? null;
+  try {
+    const res = await fetch(GROQ_MODELS_URL, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(5000),
+    });
+    const data: any = res.ok ? await res.json() : null;
+    const ids = new Set<string>(
+      (Array.isArray(data?.data) ? data.data : [])
+        .filter((m: any) => m?.id && m.active !== false)
+        .map((m: any) => String(m.id))
+    );
+    if (ids.size > 0) {
+      modelCache = { ids, at: Date.now() };
+      return ids;
+    }
+  } catch {
+    // fall through
+  }
+  modelListFailedAt = Date.now();
+  return modelCache?.ids ?? null;
+}
+
+function rankChatModel(id: string): number {
+  if (id === DEFAULT_MODEL) return 0;
+  if (id === "openai/gpt-oss-120b") return 1;
+  if (id === "openai/gpt-oss-20b") return 2;
+  if (id.startsWith("qwen/")) return 3;
+  if (id.startsWith("openai/")) return 4;
+  return 5;
+}
+
+// Orders the models to try: the preferred ones this key can use, then any other model
+// of the right kind it can use. Uses the preferred list as-is if Groq's list is unavailable.
+async function resolveModels(preferred: string[], kind: "text" | "vision"): Promise<string[]> {
+  const wanted = Array.from(new Set(preferred.filter(Boolean)));
+  const ids = await availableModels();
+  if (!ids) return wanted;
+  const usable = wanted.filter((m) => ids.has(m));
+  const others = [...ids].filter((id) => !NON_CHAT.test(id));
+  if (kind === "vision") {
+    usable.push(...others.filter((id) => VISION_HINT.test(id)));
+  } else {
+    usable.push(...others.sort((a, b) => rankChatModel(a) - rankChatModel(b)));
+  }
+  return Array.from(new Set(usable));
+}
+
+// Image-capable models this key can use (empty when there are none).
+export async function findVisionModels(): Promise<string[]> {
+  if (!hasGroqKey()) return [];
+  return resolveModels([VISION_MODEL], "vision");
+}
+
+export const MODEL_UNAVAILABLE_MESSAGE =
+  "Gret's AI model is unavailable right now. Please try again later.";
+
+// Runs `attempt` with each usable model until one succeeds. When a request with extra
+// options (web search, JSON mode, ...) is rejected, it is retried once without them.
+async function withModelFallback<T>(
+  opts: CompletionOptions,
+  attempt: (model: string, extra: Record<string, any>) => Promise<T>
+): Promise<T> {
   if (!hasGroqKey()) throw new Error("AI assistant key is not configured on the server.");
   if (!isGretAvailable()) throw unavailableError();
 
-  const modelList = Array.from(new Set(models.filter(Boolean)));
+  const models = await resolveModels(opts.models, opts.kind ?? "text");
   let lastError: any = null;
 
-  for (const model of modelList) {
-    try {
-      return await attempt(model);
-    } catch (err: any) {
-      lastError = err;
-      if (err?.name === "AbortError") throw err;
-      if (err instanceof AttemptError && err.kind === "rate_limited") throw unavailableError();
-      if (err instanceof AttemptError && err.kind === "bad_key") throw err;
-      console.warn(`[Groq] ${model} failed:`, err?.message || err);
-      // model or server error: try the next model
+  for (const model of models) {
+    const extra: Record<string, any> = {
+      // Qwen models think out loud unless told to keep their reasoning out of the reply.
+      ...(model.startsWith("qwen/") ? { reasoning_format: "hidden" } : {}),
+      ...(opts.extra || {}),
+    };
+    const variants = Object.keys(extra).length > 0 ? [extra, {}] : [{}];
+    for (const variant of variants) {
+      try {
+        return await attempt(model, variant);
+      } catch (err: any) {
+        lastError = err;
+        if (err?.name === "AbortError") throw err;
+        if (err instanceof AttemptError && err.kind === "rate_limited") throw unavailableError();
+        if (err instanceof AttemptError && err.kind === "bad_key") throw err;
+        console.warn(`[Groq] ${model} failed:`, err?.message || err);
+        if (!isModelError(err)) break; // server error: move on to the next model
+      }
     }
   }
 
-  throw lastError || new Error("An unexpected error occurred.");
+  if (!lastError || isModelError(lastError)) {
+    modelCache = null; // refresh Groq's model list on the next request
+    modelListFailedAt = 0;
+    const err = new AttemptError("model", MODEL_UNAVAILABLE_MESSAGE);
+    throw err;
+  }
+  throw lastError;
 }
 
 export interface ChatMessage {
@@ -139,20 +238,21 @@ export interface ChatMessage {
 
 export interface CompletionOptions {
   models: string[];
+  kind?: "text" | "vision";
   temperature?: number;
   json?: boolean;
+  extra?: Record<string, any>;
   signal?: AbortSignal;
 }
 
 export async function groqComplete(messages: ChatMessage[], opts: CompletionOptions): Promise<string> {
-  return withModelFallback(opts.models, async (model) => {
+  const withJson = {
+    ...opts,
+    extra: { ...(opts.json ? { response_format: { type: "json_object" } } : {}), ...(opts.extra || {}) },
+  };
+  return withModelFallback(withJson, async (model, extra) => {
     const res = await postToGroq(
-      {
-        model,
-        messages,
-        temperature: opts.temperature ?? 0.7,
-        ...(opts.json ? { response_format: { type: "json_object" } } : {}),
-      },
+      { model, messages, temperature: opts.temperature ?? 0.7, ...extra },
       opts.signal
     );
     const data: any = await res.json();
@@ -167,9 +267,9 @@ export async function groqStream(
   opts: CompletionOptions,
   onText: (text: string) => void
 ): Promise<void> {
-  return withModelFallback(opts.models, async (model) => {
+  return withModelFallback(opts, async (model, extra) => {
     const res = await postToGroq(
-      { model, messages, temperature: opts.temperature ?? 0.7, stream: true },
+      { model, messages, temperature: opts.temperature ?? 0.7, ...extra, stream: true },
       opts.signal
     );
     if (!res.body) throw new AttemptError("server", "Empty response body from Groq");
