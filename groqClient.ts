@@ -91,7 +91,9 @@ export function isGretAvailable(): boolean {
 function unavailableError(models: string[]): GretUnavailableError {
   const now = Date.now();
   const soonest = Math.min(...models.map((m) => blockedUntil.get(m) ?? now));
-  return new GretUnavailableError(soonest - now > FIVE_MINUTES ? UNAVAILABLE_MESSAGE : BUSY_MESSAGE);
+  // No model is paused for long (or the pauses already ended): just busy.
+  const long = Number.isFinite(soonest) && soonest - now > FIVE_MINUTES;
+  return new GretUnavailableError(long ? UNAVAILABLE_MESSAGE : BUSY_MESSAGE);
 }
 
 // Parse Groq durations such as "2.5s", "1m30s", "7h12m5.2s", or plain seconds.
@@ -172,8 +174,8 @@ function classify(status: number, info: GroqErrorInfo): FailureKind {
   return "server";
 }
 
-// Sends one request. `timeout` limits the wait for Groq's response headers: for a streamed
-// reply that is the time to start answering, for a non-streamed one the whole answer.
+// Sends one request. `timeout` limits the wait for Groq's response headers (for a streamed
+// reply, the time to start answering).
 async function postToGroq(payload: any, timeout: number, signal?: AbortSignal): Promise<Response> {
   const startTimeout = new AbortController();
   const timer = setTimeout(() => startTimeout.abort(), Math.max(timeout, 0));
@@ -313,7 +315,7 @@ function optionsFor(model: string, extra: Record<string, any> = {}): Record<stri
 function retryOptions(options: Record<string, any>, err: AttemptError, firstRefusal: boolean): Record<string, any> | null {
   const text = `${err.code} ${err.message}`.toLowerCase();
   const named = Object.keys(options).filter((key) => {
-    if (key === "tools") return /tool|browser_search/.test(text);
+    if (key === "tools") return /tools|browser_search/.test(err.message.toLowerCase());
     if (key === "response_format") return /json|response_format/.test(text);
     if (key === "reasoning_effort") return /reasoning_effort/.test(text) || (/reasoning/.test(text) && !text.includes("reasoning_format"));
     if (key === "reasoning_format") return /reasoning_format/.test(text) || (/reasoning/.test(text) && !text.includes("reasoning_effort"));
@@ -361,6 +363,11 @@ async function withModelFallback<T>(
         const failure = err instanceof AttemptError ? err : new AttemptError("server", String(err?.message || err));
         console.warn(`[Groq] ${model} failed (${failure.kind}):`, failure.message);
         if (failure.kind === "bad_key" || failure.kind === "too_large") throw failure;
+        // A failed web search: let the next model search instead of answering without it.
+        if (failure.code === "tool_use_failed" && options.tools) {
+          sawServerError = true;
+          break;
+        }
         if (failure.kind === "rejected") {
           const reduced = retryOptions(options, failure, firstRefusal);
           firstRefusal = false;
@@ -446,9 +453,9 @@ class ReplyFilter {
     // Groq's markers look like 【1†L9-L13】; other 【...】 brackets are normal text.
     text = text.replace(/[ \t]*【\d+†[^】]{0,80}】/g, "");
     if (final) return text.replace(/[ \t]*【\d+†[^】]*$/, "");
-    const partial = text.match(/[ \t]*【(\d+(†[^】]{0,80})?)?$/);
-    if (partial) {
-      this.pending = partial[0]; // a marker may be split across chunks
+    const partial = text.match(/[ \t]*(【(\d+(†[^】]{0,80})?)?)?$/);
+    if (partial && partial[0]) {
+      this.pending = partial[0]; // a marker may be split across chunks, or follow these spaces
       text = text.slice(0, partial.index);
     }
     return text;
@@ -487,7 +494,17 @@ export async function groqComplete(messages: ChatMessage[], opts: CompletionOpti
       deadline - Date.now(),
       opts.signal
     );
-    const data: any = await res.json();
+    // The whole answer must arrive within the reply's time budget.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const data: any = await Promise.race([
+      res.json(),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          res.body?.cancel().catch(() => {});
+          reject(new AttemptError("server", TIMEOUT_MESSAGE));
+        }, Math.max(deadline - Date.now(), 0));
+      }),
+    ]).finally(() => clearTimeout(timer));
     const text = cleanReply(data?.choices?.[0]?.message?.content ?? "", Boolean(options.tools));
     if (!text) throw new AttemptError("server", "Groq returned an empty answer");
     return text;
